@@ -13,9 +13,9 @@ import {
 import Svg, { Path } from 'react-native-svg';
 
 // 1. IMPORT CÁC COMPONENT DÙNG CHUNG
-import Header from '../../components/Header';
-import ActionToolbar from '../../components/ActionToolbar';
-import { SortIcon, TrashIcon } from '../../components/Icons';
+import Header from '../../../components/Header';
+import ActionToolbar from '../../../components/ActionToolbar';
+import { SortIcon, TrashIcon } from '../../../components/Icons';
 
 const MoreIcon = () => (
     <Svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="gray" strokeWidth="2">

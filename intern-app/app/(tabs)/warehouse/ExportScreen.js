@@ -12,63 +12,76 @@ import {
 import Svg, { Path } from 'react-native-svg';
 
 // 1. IMPORT CÁC COMPONENT DÙNG CHUNG
-import Header from '../../components/Header';
-import ActionToolbar from '../../components/ActionToolbar';
-import { SortIcon, TrashIcon } from '../../components/Icons';
+import Header from '../../../components/Header';
+import ActionToolbar from '../../../components/ActionToolbar';
+import { SortIcon, TrashIcon } from '../../../components/Icons';
 
-// --- MOCK DATA (Dựa trên HTML) ---
-const MOCK_IMPORTS = [
+// --- MOCK DATA (Dựa trên HTML Phiếu xuất) ---
+const MOCK_EXPORTS = [
+  { 
+    id: '5', 
+    code: 'PXH00005', 
+    date: '15/11/2023', 
+    customer: 'Nguyễn Văn An', 
+    creator: 'Nguyễn Văn Thiên', 
+    note: 'Xuất gấp' 
+  },
+  { 
+    id: '4', 
+    code: 'PXH00004', 
+    date: '15/11/2023', 
+    customer: 'Trần Thị Bé', 
+    creator: 'Nguyễn Văn Thiên', 
+    note: 'Xuất gấp' 
+  },
+  { 
+    id: '3', 
+    code: 'PXH00003', 
+    date: '15/11/2023', 
+    customer: 'Lê Hoàng Cường', 
+    creator: 'Nguyễn Văn Thiên', 
+    note: 'Xuất gấp' 
+  },
   { 
     id: '2', 
-    code: 'PNH00002', 
-    date: '25/10/2023', 
-    provider: 'Công ty TNHH FPT Shop', 
-    warehouse: 'Kho Hàng Mới', 
+    code: 'PXH00002', 
+    date: '15/11/2023', 
+    customer: 'Phạm Minh Đức', 
     creator: 'Nguyễn Văn Thiên', 
-    note: 'Nhập hàng đợt 1' 
-  },
-  // Thêm dữ liệu giả để test
-  { 
-    id: '1', 
-    code: 'PNH00001', 
-    date: '24/10/2023', 
-    provider: 'Công ty CP Sữa Việt Nam', 
-    warehouse: 'Kho Bảo Hành', 
-    creator: 'Trần Lê Thục Uyên', 
-    note: 'Nhập nguyên liệu' 
+    note: 'Xuất gấp' 
   },
 ];
 
-export default function ImportScreen() {
+export default function ExportScreen() {
   const [searchText, setSearchText] = useState('');
-  const [imports, setImports] = useState(MOCK_IMPORTS);
+  const [exports, setExports] = useState(MOCK_EXPORTS);
 
   // --- HÀM XỬ LÝ ---
   const handleSearch = (text) => {
     setSearchText(text);
     if (text) {
-        const filtered = MOCK_IMPORTS.filter(item => 
+        const filtered = MOCK_EXPORTS.filter(item => 
             item.code.toLowerCase().includes(text.toLowerCase()) || 
-            item.provider.toLowerCase().includes(text.toLowerCase())
+            item.customer.toLowerCase().includes(text.toLowerCase())
         );
-        setImports(filtered);
+        setExports(filtered);
     } else {
-        setImports(MOCK_IMPORTS);
+        setExports(MOCK_EXPORTS);
     }
   };
 
   const handleDelete = (id, code) => {
     Alert.alert(
       "Xác nhận xóa",
-      `Bạn có chắc chắn muốn xóa phiếu nhập ${code}?`,
+      `Bạn có chắc chắn muốn xóa phiếu xuất ${code}?`,
       [
         { text: "Hủy", style: "cancel" },
         { 
             text: "Xóa", 
             style: "destructive",
             onPress: () => {
-                setImports(imports.filter(i => i.id !== id));
-                Alert.alert("Thành công", "Đã xóa phiếu nhập");
+                setExports(exports.filter(i => i.id !== id));
+                Alert.alert("Thành công", "Đã xóa phiếu xuất");
             }
         }
       ]
@@ -86,10 +99,8 @@ export default function ImportScreen() {
         <View className="w-28 px-2 flex-row items-center border-r border-gray-200"><Text className="text-xs font-bold text-gray-700 mr-1">Mã phiếu</Text><SortIcon/></View>
         {/* Ngày lập */}
         <View className="w-28 px-2 flex-row items-center border-r border-gray-200"><Text className="text-xs font-bold text-gray-700 mr-1">Ngày lập</Text><SortIcon/></View>
-        {/* Nhà cung cấp */}
-        <View className="w-48 px-2 flex-row items-center border-r border-gray-200"><Text className="text-xs font-bold text-gray-700 mr-1">Nhà cung cấp</Text><SortIcon/></View>
-        {/* Kho */}
-        <View className="w-32 px-2 flex-row items-center border-r border-gray-200"><Text className="text-xs font-bold text-gray-700 mr-1">Kho</Text><SortIcon/></View>
+        {/* Khách hàng (Thay vì Nhà cung cấp) */}
+        <View className="w-48 px-2 flex-row items-center border-r border-gray-200"><Text className="text-xs font-bold text-gray-700 mr-1">Khách hàng</Text><SortIcon/></View>
         {/* Người lập */}
         <View className="w-40 px-2 flex-row items-center border-r border-gray-200"><Text className="text-xs font-bold text-gray-700 mr-1">Người lập phiếu</Text><SortIcon/></View>
         {/* Ghi chú */}
@@ -112,16 +123,11 @@ export default function ImportScreen() {
             <Text className="text-sm text-gray-800">{item.date}</Text>
         </View>
         
-        {/* Nhà cung cấp (Cắt dòng nếu dài) */}
+        {/* Khách hàng (Cắt dòng nếu dài) */}
         <View className="w-48 px-2">
             <Text className="text-sm text-gray-600" numberOfLines={1} ellipsizeMode="tail">
-                {item.provider}
+                {item.customer}
             </Text>
-        </View>
-
-        {/* Kho */}
-        <View className="w-32 px-2">
-            <Text className="text-sm text-gray-600">{item.warehouse}</Text>
         </View>
 
         {/* Người lập */}
@@ -150,11 +156,11 @@ export default function ImportScreen() {
     <SafeAreaView className="flex-1 bg-gray-100">
       
       {/* 
-          1. Header: Chọn OPERATIONS (Nghiệp vụ) và Highlight 'Phiếu nhập hàng'
+          1. Header: Chọn OPERATIONS (Nghiệp vụ) và Highlight 'Phiếu xuất hàng'
       */}
       <Header 
         defaultActiveMenu="OPERATIONS" 
-        activeSubMenu="Phiếu nhập hàng"
+        activeSubMenu="Phiếu xuất hàng"
         onSubMenuPress={handleSubMenuPress}
       />
 
@@ -162,9 +168,9 @@ export default function ImportScreen() {
       <ActionToolbar 
         searchText={searchText}
         setSearchText={handleSearch}
-        onCreatePress={() => Alert.alert("Thông báo", "Tạo phiếu nhập mới")}
-        onFilterPress={() => Alert.alert("Bộ lọc", "Hiện modal lọc phiếu nhập")}
-        onImportPress={() => Alert.alert("Excel", "Nhập từ Excel")}
+        onCreatePress={() => Alert.alert("Thông báo", "Tạo phiếu xuất mới")}
+        onFilterPress={() => Alert.alert("Bộ lọc", "Hiện modal lọc phiếu xuất")}
+        // HTML gốc trang này không thấy nút Import, nhưng có thể thêm nếu cần
       />
 
       {/* 3. Content Table */}
@@ -177,19 +183,19 @@ export default function ImportScreen() {
 
                     {/* Table List */}
                     <FlatList 
-                        data={imports}
+                        data={exports}
                         renderItem={renderTableRow}
                         keyExtractor={item => item.id}
                         ListEmptyComponent={
                             <View className="p-10 items-center">
-                                <Text className="text-gray-500">Không có phiếu nhập nào</Text>
+                                <Text className="text-gray-500">Không có phiếu xuất nào</Text>
                             </View>
                         }
                     />
                     
                     {/* Footer Count (nếu cần) */}
                     <View className="bg-gray-50 border-t border-gray-200 p-2 flex-row justify-end items-center">
-                         <Text className="text-gray-600 text-xs mr-2">Tổng số phiếu: {imports.length}</Text>
+                         <Text className="text-gray-600 text-xs mr-2">Tổng số phiếu: {exports.length}</Text>
                     </View>
                 </View>
             </ScrollView>

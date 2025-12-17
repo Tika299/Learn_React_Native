@@ -12,64 +12,95 @@ import {
 import Svg, { Path } from 'react-native-svg';
 
 // 1. IMPORT CÁC COMPONENT DÙNG CHUNG
-import Header from '../../components/Header';
-import ActionToolbar from '../../components/ActionToolbar';
-import { SortIcon, TrashIcon } from '../../components/Icons';
+import Header from '../../../components/Header';
+import ActionToolbar from '../../../components/ActionToolbar';
+import { SortIcon, TrashIcon } from '../../../components/Icons';
 
-// --- MOCK DATA (Tự tạo vì HTML table body rỗng) ---
-const MOCK_RETURN_FORMS = [
+
+// --- MOCK DATA (Dựa trên HTML Báo giá) ---
+const MOCK_QUOTATIONS = [
   { 
-    id: '1', 
-    code: 'PTH00001', 
+    id: '5', 
+    code: 'QT-PG9ZHXDE', 
     customer: 'Nguyễn Văn An', 
-    date: '12/12/2025', 
+    date: '10/04/2013', 
     receivingCode: 'PN000001', 
-    status: 'Đã trả hàng', 
-    type: 'Bảo hành', 
-    note: 'Đã thay màn hình xong, khách đã kiểm tra.' 
+    totalAmount: '34,544,667', 
+    type: 'Bảo hành',
+    note: 'Atque iusto accusantium vel iusto repellendus praesentium molestias consequatur aut ducimus delectus omnis consequatur.' 
+  },
+  { 
+    id: '4', 
+    code: 'QT-PLLUFLTA', 
+    customer: 'Cửa hàng Di Động Minh Phát', 
+    date: '22/01/1981', 
+    receivingCode: 'PN000001', 
+    totalAmount: '24,981,221', 
+    type: 'Bảo hành',
+    note: 'Dolorum molestiae animi reprehenderit ipsam vitae qui autem nam.' 
+  },
+  { 
+    id: '3', 
+    code: 'QT-OVGXRZTE', 
+    customer: 'Phạm Minh Đức', 
+    date: '21/02/2017', 
+    receivingCode: 'PN000002', 
+    totalAmount: '16,120,359', 
+    type: 'Dịch vụ',
+    note: 'Quam enim voluptatem qui sed error exercitationem quia eum est eaque temporibus est a.' 
   },
   { 
     id: '2', 
-    code: 'PTH00002', 
-    customer: 'Vũ Thị Hương', 
-    date: '13/12/2025', 
+    code: 'QT-GNLK3XCK', 
+    customer: 'Tập đoàn XYZ', 
+    date: '13/10/1974', 
     receivingCode: 'PN000002', 
-    status: 'Chờ thanh toán', 
-    type: 'Dịch vụ', 
-    note: 'Sửa nguồn, chờ khách chuyển khoản.' 
+    totalAmount: '18,006,961', 
+    type: 'Dịch vụ',
+    note: 'Nobis et similique maxime non officiis natus architecto nemo facilis dolores molestiae.' 
+  },
+  { 
+    id: '1', 
+    code: 'QT-YCIHTBAD', 
+    customer: 'Cửa hàng Di Động Minh Phát', 
+    date: '06/07/1997', 
+    receivingCode: 'PN000001', 
+    totalAmount: '37,519,870', 
+    type: 'Bảo hành',
+    note: 'Harum voluptas in ex iusto repudiandae quo.' 
   },
 ];
 
-export default function ReturnFormScreen() {
+export default function QuotationScreen() {
   const [searchText, setSearchText] = useState('');
-  const [returnForms, setReturnForms] = useState(MOCK_RETURN_FORMS);
+  const [quotations, setQuotations] = useState(MOCK_QUOTATIONS);
 
   // --- HÀM XỬ LÝ ---
   const handleSearch = (text) => {
     setSearchText(text);
     if (text) {
-        const filtered = MOCK_RETURN_FORMS.filter(item => 
+        const filtered = MOCK_QUOTATIONS.filter(item => 
             item.code.toLowerCase().includes(text.toLowerCase()) || 
             item.customer.toLowerCase().includes(text.toLowerCase())
         );
-        setReturnForms(filtered);
+        setQuotations(filtered);
     } else {
-        setReturnForms(MOCK_RETURN_FORMS);
+        setQuotations(MOCK_QUOTATIONS);
     }
   };
 
   const handleDelete = (id, code) => {
     Alert.alert(
       "Xác nhận xóa",
-      `Bạn có chắc chắn muốn xóa phiếu trả hàng ${code}?`,
+      `Bạn có chắc chắn muốn xóa phiếu báo giá ${code}?`,
       [
         { text: "Hủy", style: "cancel" },
         { 
             text: "Xóa", 
             style: "destructive",
             onPress: () => {
-                setReturnForms(returnForms.filter(f => f.id !== id));
-                Alert.alert("Thành công", "Đã xóa phiếu");
+                setQuotations(quotations.filter(q => q.id !== id));
+                Alert.alert("Thành công", "Đã xóa phiếu báo giá");
             }
         }
       ]
@@ -83,21 +114,13 @@ export default function ReturnFormScreen() {
   // --- RENDER TABLE HEADER ---
   const renderTableHeader = () => (
     <View className="flex-row bg-gray-100 border-b border-gray-200 py-3">
-        {/* Mã phiếu */}
         <View className="w-28 px-2 flex-row items-center border-r border-gray-200"><Text className="text-xs font-bold text-gray-700 mr-1">Mã phiếu</Text><SortIcon/></View>
-        {/* Khách hàng */}
         <View className="w-40 px-2 flex-row items-center border-r border-gray-200"><Text className="text-xs font-bold text-gray-700 mr-1">Khách hàng</Text><SortIcon/></View>
-        {/* Ngày lập */}
-        <View className="w-28 px-2 flex-row items-center border-r border-gray-200"><Text className="text-xs font-bold text-gray-700 mr-1">Ngày lập phiếu</Text><SortIcon/></View>
-        {/* Phiếu tiếp nhận */}
-        <View className="w-32 px-2 flex-row items-center border-r border-gray-200"><Text className="text-xs font-bold text-gray-700 mr-1">Phiếu tiếp nhận</Text><SortIcon/></View>
-        {/* Tình trạng */}
-        <View className="w-28 px-2 flex-row items-center border-r border-gray-200"><Text className="text-xs font-bold text-gray-700 mr-1">Tình trạng</Text><SortIcon/></View>
-        {/* Loại phiếu */}
+        <View className="w-28 px-2 flex-row items-center border-r border-gray-200"><Text className="text-xs font-bold text-gray-700 mr-1">Ngày lập</Text><SortIcon/></View>
+        <View className="w-28 px-2 flex-row items-center border-r border-gray-200"><Text className="text-xs font-bold text-gray-700 mr-1">Phiếu tiếp nhận</Text><SortIcon/></View>
+        <View className="w-28 px-2 flex-row items-center border-r border-gray-200"><Text className="text-xs font-bold text-gray-700 mr-1">Tổng tiền</Text><SortIcon/></View>
         <View className="w-24 px-2 flex-row items-center border-r border-gray-200"><Text className="text-xs font-bold text-gray-700 mr-1">Loại phiếu</Text><SortIcon/></View>
-        {/* Ghi chú */}
         <View className="w-48 px-2 flex-row items-center border-r border-gray-200"><Text className="text-xs font-bold text-gray-700 mr-1">Ghi chú</Text><SortIcon/></View>
-        {/* Xóa */}
         <View className="w-16 px-2 flex-row items-center justify-center"><Text className="text-xs font-bold text-gray-700"></Text></View>
     </View>
   );
@@ -123,15 +146,15 @@ export default function ReturnFormScreen() {
         </View>
 
         {/* Phiếu tiếp nhận (Link) */}
-        <View className="w-32 px-2">
+        <View className="w-28 px-2">
             <TouchableOpacity>
                 <Text className="text-sm font-medium text-purple-700">{item.receivingCode}</Text>
             </TouchableOpacity>
         </View>
 
-        {/* Tình trạng (Có thể thêm màu nếu cần) */}
+        {/* Tổng tiền */}
         <View className="w-28 px-2">
-            <Text className="text-sm text-gray-600">{item.status}</Text>
+            <Text className="text-sm font-bold text-gray-800">{item.totalAmount}</Text>
         </View>
 
         {/* Loại phiếu */}
@@ -159,10 +182,10 @@ export default function ReturnFormScreen() {
   return (
     <SafeAreaView className="flex-1 bg-gray-100">
       
-      {/* 1. Header: Chọn OPERATIONS và Highlight 'Phiếu trả hàng' */}
+      {/* 1. Header: Chọn OPERATIONS và Highlight 'Phiếu báo giá' */}
       <Header 
         defaultActiveMenu="OPERATIONS" 
-        activeSubMenu="Phiếu trả hàng"
+        activeSubMenu="Phiếu báo giá"
         onSubMenuPress={handleSubMenuPress}
       />
 
@@ -170,8 +193,8 @@ export default function ReturnFormScreen() {
       <ActionToolbar 
         searchText={searchText}
         setSearchText={handleSearch}
-        onCreatePress={() => Alert.alert("Thông báo", "Tạo phiếu trả hàng mới")}
-        onFilterPress={() => Alert.alert("Bộ lọc", "Lọc phiếu trả hàng")}
+        onCreatePress={() => Alert.alert("Thông báo", "Tạo phiếu báo giá mới")}
+        onFilterPress={() => Alert.alert("Bộ lọc", "Lọc phiếu báo giá")}
       />
 
       {/* 3. Content Table */}
@@ -181,19 +204,19 @@ export default function ReturnFormScreen() {
                 <View>
                     {renderTableHeader()}
                     <FlatList 
-                        data={returnForms}
+                        data={quotations}
                         renderItem={renderTableRow}
                         keyExtractor={item => item.id}
                         ListEmptyComponent={
                             <View className="p-10 items-center">
-                                <Text className="text-gray-500">Không có phiếu trả hàng nào</Text>
+                                <Text className="text-gray-500">Không có phiếu báo giá nào</Text>
                             </View>
                         }
                     />
                     
                     {/* Footer Count */}
                     <View className="bg-gray-50 border-t border-gray-200 p-2 flex-row justify-end items-center">
-                         <Text className="text-gray-600 text-xs mr-2">Tổng số phiếu: {returnForms.length}</Text>
+                         <Text className="text-gray-600 text-xs mr-2">Tổng số phiếu: {quotations.length}</Text>
                     </View>
                 </View>
             </ScrollView>

@@ -4,7 +4,7 @@ import { View, ActivityIndicator } from "react-native";
 import { NavigationContainer } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 
-import LoginScreen from "./login";
+import LoginScreen from "../login";
 import HeaderDashboard from "../../components/HeaderDashboard";
 
 const Stack = createNativeStackNavigator();

@@ -12,9 +12,9 @@ import {
 import Svg, { Path } from 'react-native-svg';
 
 // 1. IMPORT CÁC COMPONENT DÙNG CHUNG
-import Header from '../../components/Header';
-import ActionToolbar from '../../components/ActionToolbar';
-import { SortIcon } from '../../components/Icons';
+import Header from '../../../components/Header';
+import ActionToolbar from '../../../components/ActionToolbar';
+import { SortIcon } from '../../../components/Icons';
 
 // --- MOCK DATA (Dựa trên HTML Tra cứu bảo hành) ---
 const MOCK_WARRANTIES = [
