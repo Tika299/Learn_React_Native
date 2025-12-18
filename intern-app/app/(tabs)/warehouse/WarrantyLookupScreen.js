@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   View, 
   Text, 
@@ -7,111 +7,183 @@ import {
   FlatList, 
   Alert, 
   TouchableOpacity,
+  ActivityIndicator,
+  RefreshControl,
+  Modal,
+  TextInput,
   Platform 
 } from 'react-native';
-import Svg, { Path } from 'react-native-svg';
 
-// 1. IMPORT CÁC COMPONENT DÙNG CHUNG
+// COMPONENT DÙNG CHUNG
 import Header from '../../../components/Header';
 import ActionToolbar from '../../../components/ActionToolbar';
 import { SortIcon } from '../../../components/Icons';
 
-// --- MOCK DATA (Dựa trên HTML Tra cứu bảo hành) ---
-const MOCK_WARRANTIES = [
-  { 
-    id: '4', 
-    code: 'LAP002', 
-    brand: 'Apple', 
-    serial: 'DELL3511-004D', 
-    customer: 'Trần Thị Bé', 
-    sellDate: '20/09/2024', 
-    warrantyInfo: 'Bảo hành Apple 12 tháng: 12 tháng', 
-    expiryStatus: 'Hết bảo hành (2 tháng 25 ngày trước)', 
-    isExpired: true,
-    activationDate: '',
-    serviceWarranty: 'Bảo hành chính hãng: tháng',
-    status: 'Bảo hành chính hãng: Còn bảo hành'
-  },
-  { 
-    id: '3', 
-    code: 'PHN002', 
-    brand: 'Samsung', 
-    serial: 'DELL3511-003C', 
-    customer: 'Phạm Minh Đức', 
-    sellDate: '15/03/2025', 
-    warrantyInfo: 'Sửa mainboard – Có phí: không bảo hành', 
-    expiryStatus: 'Hết bảo hành (9 tháng 0 ngày trước)', 
-    isExpired: true,
-    activationDate: '',
-    serviceWarranty: '',
-    status: 'Sửa mainboard – Có phí: Hết bảo hành'
-  },
-  { 
-    id: '2', 
-    code: 'PHN001', 
-    brand: 'Apple', 
-    serial: 'DELL3511-002B', 
-    customer: 'Đỗ Quang Huy (VIP)', 
-    sellDate: '20/02/2025', 
-    warrantyInfo: 'Đổi máy mới do lỗi camera: 36 tháng | AppleCare+: 36 tháng', 
-    expiryStatus: 'Còn 2 năm 2 tháng 4 ngày', 
-    isExpired: false,
-    activationDate: '',
-    serviceWarranty: 'Bảo hành máy đổi mới: tháng | Bảo hành AppleCare+: tháng',
-    status: 'Bảo hành máy đổi mới: Bảo hành DV | Bảo hành AppleCare+: Còn bảo hành'
-  },
-  { 
-    id: '1', 
-    code: 'LAP001', 
-    brand: 'Dell', 
-    serial: 'DELL3511-001A', 
-    customer: 'Nguyễn Văn An', 
-    sellDate: '10/11/2025', 
-    warrantyInfo: 'Sửa màn hình – Dịch vụ: không bảo hành | Gia hạn bảo hành thêm: 12 tháng', 
-    expiryStatus: 'Hết bảo hành (1 tháng 5 ngày trước)', 
-    isExpired: true,
-    activationDate: '15/11/2025',
-    serviceWarranty: 'Gia hạn thêm 12 tháng: 12 tháng | Bảo hành chính hãng: tháng',
-    status: 'Sửa màn hình – Dịch vụ: Hết bảo hành | Gia hạn thêm 12 tháng: Còn bảo hành'
-  },
-];
+// API
+import warrantyApi from '../../../api/warrantyApi';
 
 export default function WarrantyLookupScreen() {
+  // --- STATE ---
   const [searchText, setSearchText] = useState('');
-  const [warranties, setWarranties] = useState(MOCK_WARRANTIES);
+  const [warranties, setWarranties] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
 
-  // --- HÀM XỬ LÝ ---
-  const handleSearch = (text) => {
-    setSearchText(text);
-    if (text) {
-        const filtered = MOCK_WARRANTIES.filter(item => 
-            item.code.toLowerCase().includes(text.toLowerCase()) || 
-            item.serial.toLowerCase().includes(text.toLowerCase()) ||
-            item.customer.toLowerCase().includes(text.toLowerCase())
-        );
-        setWarranties(filtered);
-    } else {
-        setWarranties(MOCK_WARRANTIES);
+  // Pagination
+  const [page, setPage] = useState(1);
+  const [lastPage, setLastPage] = useState(1);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [totalRecords, setTotalRecords] = useState(0);
+
+  // Sorting
+  const [sortBy, setSortBy] = useState('id');
+  const [sortDir, setSortDir] = useState('desc');
+
+  // Filter Modal
+  const [filterModalVisible, setFilterModalVisible] = useState(false);
+  const [customers, setCustomers] = useState([]); // List khách hàng cho dropdown
+  
+  const [filterValues, setFilterValues] = useState({
+      ma: '',       // Mã hàng
+      brand: '',    // Hãng
+      sn: '',       // Serial
+      customer: []  // Mảng ID khách hàng (Controller hỗ trợ whereIn)
+  });
+
+  // --- EFFECT ---
+
+  // 1. Load danh sách khách hàng để lọc (khi mount)
+  useEffect(() => {
+      fetchCustomers();
+  }, []);
+
+  // 2. Load danh sách bảo hành (khi search/sort thay đổi)
+  useEffect(() => {
+    const timer = setTimeout(() => {
+        fetchWarranties(1, true);
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [searchText, sortBy, sortDir]);
+
+  // --- API FUNCTIONS ---
+
+  const fetchCustomers = async () => {
+      try {
+          const res = await warrantyApi.getCustomers();
+          if (res.data.success) {
+              setCustomers(res.data.data);
+          }
+      } catch (error) {
+          console.error("Lỗi lấy khách hàng:", error);
+      }
+  };
+
+  const fetchWarranties = async (pageNumber = 1, isRefresh = false) => {
+    if (pageNumber === 1 && !isRefresh) setLoading(true);
+    try {
+        const params = {
+            page: pageNumber,
+            per_page: 20,
+            search: searchText,
+            sort_by: sortBy,
+            sort_dir: sortDir,
+            ...filterValues
+        };
+
+        const response = await warrantyApi.getList(params);
+        const result = response.data;
+
+        if (result.success) {
+            if (isRefresh || pageNumber === 1) {
+                setWarranties(result.data);
+            } else {
+                setWarranties(prev => [...prev, ...result.data]);
+            }
+            setPage(result.pagination.current_page);
+            setLastPage(result.pagination.last_page);
+            setTotalRecords(result.pagination.total);
+        }
+    } catch (error) {
+        console.error("Lỗi lấy dữ liệu bảo hành:", error);
+    } finally {
+        setLoading(false);
+        setRefreshing(false);
+        setIsLoadingMore(false);
     }
   };
 
+  // --- HANDLERS ---
+
+  const handleSort = (field) => {
+    if (sortBy === field) {
+        setSortDir(sortDir === 'asc' ? 'desc' : 'asc');
+    } else {
+        setSortBy(field);
+        setSortDir('asc');
+    }
+  };
+
+  const onRefresh = () => {
+    setRefreshing(true);
+    fetchWarranties(1, true);
+  };
+
+  const onLoadMore = () => {
+    if (!isLoadingMore && page < lastPage) {
+        setIsLoadingMore(true);
+        fetchWarranties(page + 1, false);
+    }
+  };
+
+  const handleApplyFilter = () => {
+    setFilterModalVisible(false);
+    fetchWarranties(1, true);
+    Alert.alert("Thông báo", "Đã áp dụng bộ lọc");
+  };
+
+  const handleClearFilter = () => {
+    setFilterValues({ ma: '', brand: '', sn: '', customer: [] });
+    setFilterModalVisible(false);
+    fetchWarranties(1, true);
+  };
+
   const handleSubMenuPress = (item) => {
-    console.log("Navigating to:", item.name);
+    Alert.alert("Chuyển trang", item.name);
   };
 
   // --- RENDER TABLE HEADER ---
   const renderTableHeader = () => (
     <View className="flex-row bg-gray-100 border-b border-gray-200 py-3">
-        <View className="w-24 px-2 flex-row items-center border-r border-gray-200"><Text className="text-xs font-bold text-gray-700 mr-1">Mã hàng</Text><SortIcon/></View>
-        <View className="w-24 px-2 flex-row items-center border-r border-gray-200"><Text className="text-xs font-bold text-gray-700 mr-1">Hãng</Text><SortIcon/></View>
-        <View className="w-40 px-2 flex-row items-center border-r border-gray-200"><Text className="text-xs font-bold text-gray-700 mr-1">S/N</Text><SortIcon/></View>
-        <View className="w-40 px-2 flex-row items-center border-r border-gray-200"><Text className="text-xs font-bold text-gray-700 mr-1">Khách hàng</Text><SortIcon/></View>
-        <View className="w-28 px-2 flex-row items-center border-r border-gray-200"><Text className="text-xs font-bold text-gray-700 mr-1">Ngày bán</Text><SortIcon/></View>
-        <View className="w-48 px-2 flex-row items-center border-r border-gray-200"><Text className="text-xs font-bold text-gray-700 mr-1">Bảo hành</Text><SortIcon/></View>
-        <View className="w-48 px-2 flex-row items-center border-r border-gray-200"><Text className="text-xs font-bold text-gray-700 mr-1">Hạn bảo hành</Text><SortIcon/></View>
-        <View className="w-32 px-2 flex-row items-center border-r border-gray-200"><Text className="text-xs font-bold text-gray-700 mr-1">Ngày kích hoạt BH</Text><SortIcon/></View>
-        <View className="w-48 px-2 flex-row items-center border-r border-gray-200"><Text className="text-xs font-bold text-gray-700 mr-1">BH Dịch vụ</Text><SortIcon/></View>
-        <View className="w-48 px-2 flex-row items-center"><Text className="text-xs font-bold text-gray-700 mr-1">Tình trạng</Text><SortIcon/></View>
+        <TouchableOpacity className="w-24 px-4 flex-row items-center border-r border-gray-200" onPress={() => handleSort('code')}>
+            <Text className={`text-xs font-bold mr-1 ${sortBy === 'code' ? 'text-blue-600' : 'text-gray-700'}`}>Mã hàng</Text>
+            <SortIcon color={sortBy === 'code' ? '#2563EB' : '#9CA3AF'}/>
+        </TouchableOpacity>
+
+        <TouchableOpacity className="w-24 px-4 flex-row items-center border-r border-gray-200" onPress={() => handleSort('brand')}>
+            <Text className={`text-xs font-bold mr-1 ${sortBy === 'brand' ? 'text-blue-600' : 'text-gray-700'}`}>Hãng</Text>
+            <SortIcon color={sortBy === 'brand' ? '#2563EB' : '#9CA3AF'}/>
+        </TouchableOpacity>
+
+        <TouchableOpacity className="w-40 px-4 flex-row items-center border-r border-gray-200" onPress={() => handleSort('serial')}>
+            <Text className={`text-xs font-bold mr-1 ${sortBy === 'serial' ? 'text-blue-600' : 'text-gray-700'}`}>S/N</Text>
+            <SortIcon color={sortBy === 'serial' ? '#2563EB' : '#9CA3AF'}/>
+        </TouchableOpacity>
+
+        <TouchableOpacity className="w-40 px-4 flex-row items-center border-r border-gray-200" onPress={() => handleSort('customer')}>
+            <Text className={`text-xs font-bold mr-1 ${sortBy === 'customer' ? 'text-blue-600' : 'text-gray-700'}`}>Khách hàng</Text>
+            <SortIcon color={sortBy === 'customer' ? '#2563EB' : '#9CA3AF'}/>
+        </TouchableOpacity>
+
+        <TouchableOpacity className="w-32 px-4 flex-row items-center border-r border-gray-200" onPress={() => handleSort('sell_date')}>
+            <Text className={`text-xs font-bold mr-1 ${sortBy === 'sell_date' ? 'text-blue-600' : 'text-gray-700'}`}>Ngày bán</Text>
+            <SortIcon color={sortBy === 'sell_date' ? '#2563EB' : '#9CA3AF'}/>
+        </TouchableOpacity>
+
+        <View className="w-48 px-4 flex-row items-center border-r border-gray-200"><Text className="text-xs font-bold text-gray-700">Bảo hành</Text></View>
+        <View className="w-48 px-4 flex-row items-center border-r border-gray-200"><Text className="text-xs font-bold text-gray-700">Hạn bảo hành</Text></View>
+        <View className="w-32 px-4 flex-row items-center border-r border-gray-200"><Text className="text-xs font-bold text-gray-700">Kích hoạt BH</Text></View>
+        <View className="w-48 px-4 flex-row items-center border-r border-gray-200"><Text className="text-xs font-bold text-gray-700">BH Dịch vụ</Text></View>
+        <View className="w-48 px-4 flex-row items-center"><Text className="text-xs font-bold text-gray-700">Tình trạng</Text></View>
     </View>
   );
 
@@ -119,56 +191,56 @@ export default function WarrantyLookupScreen() {
   const renderTableRow = ({ item }) => (
     <View className="flex-row border-b border-gray-100 py-3 bg-white items-center">
         {/* Mã hàng */}
-        <View className="w-24 px-2">
+        <View className="w-24 px-4">
             <Text className="text-sm text-gray-800">{item.code}</Text>
         </View>
         
         {/* Hãng */}
-        <View className="w-24 px-2">
+        <View className="w-24 px-4">
             <Text className="text-sm text-gray-600">{item.brand}</Text>
         </View>
 
-        {/* S/N (Màu tím, link) */}
-        <View className="w-40 px-2">
-            <TouchableOpacity>
+        {/* S/N */}
+        <View className="w-40 px-4">
+            <TouchableOpacity onPress={() => Alert.alert("Chi tiết S/N", `Serial ID: ${item.id}`)}>
                 <Text className="text-sm font-medium text-purple-700">{item.serial}</Text>
             </TouchableOpacity>
         </View>
 
         {/* Khách hàng */}
-        <View className="w-40 px-2">
+        <View className="w-40 px-4">
             <Text className="text-sm text-gray-600" numberOfLines={1}>{item.customer}</Text>
         </View>
 
         {/* Ngày bán */}
-        <View className="w-28 px-2">
-            <Text className="text-sm text-gray-600">{item.sellDate}</Text>
+        <View className="w-32 px-4">
+            <Text className="text-sm text-gray-600">{item.sell_date}</Text>
         </View>
 
-        {/* Thông tin Bảo hành */}
-        <View className="w-48 px-2">
-            <Text className="text-sm text-gray-600" numberOfLines={2}>{item.warrantyInfo}</Text>
+        {/* Thông tin Bảo hành (Gộp từ API) */}
+        <View className="w-48 px-4">
+            <Text className="text-sm text-gray-600" numberOfLines={2}>{item.warranty_info}</Text>
         </View>
 
-        {/* Hạn bảo hành (Xử lý màu Xanh/Đỏ) */}
-        <View className="w-48 px-2">
-            <Text className={`text-sm font-medium ${item.isExpired ? 'text-red-500' : 'text-green-600'}`}>
-                {item.expiryStatus}
+        {/* Hạn bảo hành (Xanh/Đỏ dựa trên is_expired) */}
+        <View className="w-48 px-4">
+            <Text className={`text-sm font-medium ${item.is_expired ? 'text-red-500' : 'text-green-600'}`}>
+                {item.expiry_status}
             </Text>
         </View>
 
-        {/* Ngày kích hoạt BH DV */}
-        <View className="w-32 px-2">
-            <Text className="text-sm text-gray-600">{item.activationDate || '--'}</Text>
+        {/* Ngày kích hoạt BH (activation_date) */}
+        <View className="w-32 px-4">
+            <Text className="text-sm text-gray-600">{item.activation_date || '--'}</Text>
         </View>
 
         {/* Bảo hành Dịch vụ */}
-        <View className="w-48 px-2">
-            <Text className="text-sm text-gray-600" numberOfLines={2}>{item.serviceWarranty || '--'}</Text>
+        <View className="w-48 px-4">
+            <Text className="text-sm text-gray-600" numberOfLines={2}>{item.service_warranty || '--'}</Text>
         </View>
 
         {/* Tình trạng */}
-        <View className="w-48 px-2">
+        <View className="w-48 px-4">
             <Text className="text-sm text-gray-600" numberOfLines={2}>{item.status}</Text>
         </View>
     </View>
@@ -177,53 +249,74 @@ export default function WarrantyLookupScreen() {
   return (
     <SafeAreaView className="flex-1 bg-gray-100">
       
-      {/* 1. Header: OPERATIONS -> Tra cứu bảo hành */}
-      <Header 
-        defaultActiveMenu="OPERATIONS" 
-        activeSubMenu="Tra cứu bảo hành"
-        onSubMenuPress={handleSubMenuPress}
-      />
+      <Header defaultActiveMenu="OPERATIONS" activeSubMenu="Tra cứu bảo hành" onSubMenuPress={handleSubMenuPress} />
 
-      {/* 2. Toolbar */}
       <ActionToolbar 
         searchText={searchText}
-        setSearchText={handleSearch}
-        onFilterPress={() => Alert.alert("Bộ lọc", "Lọc thông tin bảo hành")}
-        // Trang này thường không có nút tạo mới hay import
+        setSearchText={setSearchText}
+        onFilterPress={() => setFilterModalVisible(true)}
       />
 
-      {/* 3. Content Table */}
       <View className="flex-1 bg-white px-3 py-2">
-        <View className="flex-1 border border-gray-200 rounded-lg overflow-hidden">
+        <View className="flex-1 border border-gray-200 rounded-lg overflow-hidden bg-white">
             <ScrollView horizontal showsHorizontalScrollIndicator={true} contentContainerStyle={{flexGrow: 1}}>
                 <View>
-                    {/* Table Header */}
                     {renderTableHeader()}
 
-                    {/* Table List */}
-                    <FlatList 
-                        data={warranties}
-                        renderItem={renderTableRow}
-                        keyExtractor={item => item.id}
-                        ListEmptyComponent={
-                            <View className="p-10 items-center">
-                                <Text className="text-gray-500">Không tìm thấy dữ liệu bảo hành</Text>
-                            </View>
-                        }
-                    />
+                    {loading && page === 1 ? (
+                        <View className="p-10 w-screen items-center"><ActivityIndicator size="large" color="#2563EB" /></View>
+                    ) : (
+                        <FlatList 
+                            data={warranties}
+                            renderItem={renderTableRow}
+                            keyExtractor={item => item.id.toString()}
+                            refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+                            onEndReached={onLoadMore}
+                            onEndReachedThreshold={0.5}
+                            ListFooterComponent={isLoadingMore ? <ActivityIndicator size="small" color="#0000ff" className="py-4"/> : null}
+                            ListEmptyComponent={<View className="p-10 w-screen items-center"><Text className="text-gray-500 italic">Không tìm thấy dữ liệu</Text></View>}
+                        />
+                    )}
                     
-                    {/* Pagination Info */}
-                    <View className="bg-gray-50 border-t border-gray-200 p-2 flex-row justify-between items-center px-4">
-                         <Text className="text-gray-500 text-xs">Hiển thị {warranties.length} kết quả</Text>
-                         <View className="flex-row">
-                            <TouchableOpacity className="px-2"><Text className="text-gray-400">{'<'}</Text></TouchableOpacity>
-                            <TouchableOpacity className="px-2"><Text className="text-gray-400">{'>'}</Text></TouchableOpacity>
-                         </View>
+                    <View className="bg-gray-50 border-t border-gray-200 p-3 flex-row justify-end items-center w-full">
+                         <Text className="text-purple-700 text-sm">Tổng số kết quả: <Text className="font-bold">{totalRecords}</Text></Text>
                     </View>
                 </View>
             </ScrollView>
         </View>
       </View>
+
+      {/* --- MODAL FILTER --- */}
+      <Modal animationType="slide" transparent={true} visible={filterModalVisible} onRequestClose={() => setFilterModalVisible(false)}>
+        <TouchableOpacity className="flex-1 justify-end bg-black/50" activeOpacity={1} onPress={() => setFilterModalVisible(false)}>
+             <View className="bg-white rounded-t-xl p-4 h-3/4 w-full">
+                <View className="flex-row justify-between items-center border-b border-gray-200 pb-3 mb-3">
+                    <Text className="text-lg font-bold text-gray-800">Bộ lọc Bảo hành</Text>
+                    <TouchableOpacity onPress={() => setFilterModalVisible(false)}><Text className="text-gray-500 font-bold">Đóng</Text></TouchableOpacity>
+                </View>
+
+                <ScrollView showsVerticalScrollIndicator={false}>
+                    <View className="mb-4"><Text className="text-sm font-medium text-gray-700 mb-1">Mã hàng</Text>
+                        <TextInput className="border border-gray-300 rounded-md p-3 bg-gray-50" value={filterValues.ma} onChangeText={(val) => setFilterValues({...filterValues, ma: val})} placeholder="Nhập mã hàng..." />
+                    </View>
+                    <View className="mb-4"><Text className="text-sm font-medium text-gray-700 mb-1">Hãng sản xuất</Text>
+                        <TextInput className="border border-gray-300 rounded-md p-3 bg-gray-50" value={filterValues.brand} onChangeText={(val) => setFilterValues({...filterValues, brand: val})} placeholder="Nhập hãng..." />
+                    </View>
+                    <View className="mb-4"><Text className="text-sm font-medium text-gray-700 mb-1">Serial Number</Text>
+                        <TextInput className="border border-gray-300 rounded-md p-3 bg-gray-50" value={filterValues.sn} onChangeText={(val) => setFilterValues({...filterValues, sn: val})} placeholder="Nhập số Serial..." />
+                    </View>
+                    
+                    {/* Filter Customer (Có thể làm Dropdown, ở đây làm Input cho đơn giản) */}
+                    {/* Nếu muốn lọc nhiều Customer thì cần UI Multi-Select */}
+                </ScrollView>
+
+                <View className="mt-4 pt-3 border-t border-gray-200 flex-row">
+                    <TouchableOpacity className="flex-1 bg-gray-200 p-3 rounded-md mr-2 items-center" onPress={handleClearFilter}><Text className="text-gray-700 font-bold">Đặt lại</Text></TouchableOpacity>
+                    <TouchableOpacity className="flex-1 bg-blue-600 p-3 rounded-md items-center" onPress={handleApplyFilter}><Text className="text-white font-bold">Áp dụng</Text></TouchableOpacity>
+                </View>
+             </View>
+        </TouchableOpacity>
+      </Modal>
 
     </SafeAreaView>
   );

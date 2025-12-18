@@ -84,3 +84,9 @@ export const CalendarIcon = () => (
         <Path d="M16 2V6" /><Path d="M8 2V6" /><Path d="M3 10H21" />
     </Svg>
 );
+
+export const MoreIcon = () => (
+    <Svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="gray" strokeWidth="2">
+        <Path d="M12 12h.01M12 6h.01M12 18h.01" strokeLinecap="round" strokeLinejoin="round"/>
+    </Svg>
+);
