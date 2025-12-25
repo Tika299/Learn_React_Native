@@ -1,80 +1,74 @@
 import React, { useState, useEffect } from 'react';
-import {
-  View,
-  Text,
-  Image,
-  TouchableOpacity,
-  ScrollView,
-  Modal,
-  Pressable
-} from 'react-native';
-import Svg, { Path } from 'react-native-svg';
-import {NotificationIcon,UserIcon} from './Icons';
+import { View, Text, Image, TouchableOpacity, ScrollView, Modal, Pressable } from 'react-native';
+import { router } from 'expo-router'; // 1. Import router từ Expo
+import { NotificationIcon, UserIcon } from './Icons'; // Đảm bảo đường dẫn đúng
 
-// DATA MENU (Giữ nguyên)
+// 2. CẬP NHẬT LINK ROUTE CHO KHỚP VỚI CẤU TRÚC FILE EXPO CỦA BẠN
 const MENU_DATA = {
   SETUP: [
-    { name: 'Nhóm đối tượng', link: '/groups' },
-    { name: 'Khách hàng', link: '/customers' },
-    { name: 'Nhà cung cấp', link: '/providers' },
-    { name: 'Hàng hoá', link: '/products' },
-    { name: 'Nhân viên', link: '/users' },
-    { name: 'Kho', link: '/warehouses' },
+    { name: 'Nhân viên', route: '/setup/UserScreen' },
+    { name: 'Khách hàng', route: '/setup/CustomerScreen' },
+    { name: 'Nhà cung cấp', route: '/setup/ProviderScreen' },
+    { name: 'Hàng hoá', route: '/setup/ProductScreen' },
+    { name: 'Nhóm đối tượng', route: '/setup/GroupScreen' },
+    { name: 'Kho', route: '/setup/WarehouseScreen' },
   ],
   OPERATIONS: [
-    { name: 'Phiếu nhập hàng', link: '/imports' },
-    { name: 'Phiếu xuất hàng', link: '/exports' },
-    { name: 'Tra cứu tồn kho', link: '/inventoryLookup' },
-    { name: 'Tra cứu bảo hành', link: '/warrantyLookup' },
-    { name: 'Phiếu tiếp nhận', link: '/receivings' },
-    { name: 'Phiếu báo giá', link: '/quotations' },
-    { name: 'Phiếu trả hàng', link: '/returnforms' },
-    { name: 'Phiếu chuyển kho', link: '/transfers' },
+    { name: 'Phiếu nhập hàng', route: '/warehouse/ImportScreen' },
+    { name: 'Phiếu xuất hàng', route: '/warehouse/ExportScreen' },
+    { name: 'Tra cứu tồn kho', route: '/warehouse/InventoryLookupScreen' },
+    { name: 'Tra cứu bảo hành', route: '/warehouse/WarrantyLookupScreen' },
+    { name: 'Phiếu tiếp nhận', route: '/warehouse/ReceivingScreen' },
+    { name: 'Phiếu báo giá', route: '/warehouse/QuotationScreen' },
+    { name: 'Phiếu trả hàng', route: '/warehouse/ReturnFormScreen' },
+    { name: 'Phiếu chuyển kho', route: '/warehouse/WarehouseTransferScreen' },
   ],
   REPORTS: [
-    { name: 'Tổng quát báo cáo', link: '/overview' },
-    { name: 'Báo cáo xuất nhập', link: '/export-import' },
-    { name: 'Báo cáo tiếp nhận - trả hàng', link: '/receipt-return' },
-    { name: 'Báo cáo phiếu báo giá', link: '/report-quotation' },
+    { name: 'Tổng quát báo cáo', route: '/report/ReportOverviewScreen' },
+    { name: 'Báo cáo xuất nhập', route: '/report/ReportExportImportScreen' },
+    { name: 'Báo cáo tiếp nhận - trả hàng', route: '/report/ReportReceiptReturnScreen' },
+    { name: 'Báo cáo phiếu báo giá', route: '/report/ReportQuotationScreen' },
   ]
 };
 
-// --- NHẬN THÊM PROP: activeSubMenu ---
-export default function Header({ defaultActiveMenu = null, activeSubMenu = null, onSubMenuPress }) {
+export default function Header({ defaultActiveMenu = null, activeSubMenu = null }) {
   const [activeMenu, setActiveMenu] = useState(defaultActiveMenu);
   const [showNotifications, setShowNotifications] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [activeNotiTab, setActiveNotiTab] = useState('info');
 
   const toggleMenu = (menuName) => {
-    if (activeMenu === menuName) {
-      // Nếu bấm lại menu đang mở thì đóng nó (hoặc giữ nguyên tùy logic bạn muốn)
-      // Ở đây ta giữ nguyên để trải nghiệm tốt hơn
-      return;
+    setActiveMenu(menuName);
+    setShowNotifications(false);
+    setShowUserMenu(false);
+  };
+
+  // 3. HÀM XỬ LÝ CHUYỂN TRANG
+  const handleNavigate = (item) => {
+    if (item.route) {
+      console.log("Navigating to:", item.route);
+      router.push(item.route); // Chuyển trang bằng Expo Router
     } else {
-      setActiveMenu(menuName);
-      setShowNotifications(false);
-      setShowUserMenu(false);
+      console.warn("Chưa cấu hình route cho:", item.name);
     }
   };
 
   return (
-    <View className="z-50">
+    <View className="z-50 bg-white">
       {/* --- TOP BAR --- */}
       <View className="bg-slate-800 flex-row items-center justify-between px-3 py-2 h-16 shadow-md z-50">
-        {/* LOGO */}
-        <View className="mr-2">
+        <TouchableOpacity onPress={() => router.push('/')} className="mr-2">
+          {/* LOGO (Sửa lại uri nếu cần) */}
           <Image
-            source={{ uri: "http://localhost:8000/images/loto-tpp.png" }}
+            source={{ uri: "https://placehold.co/100x40/png" }}
             className="w-24 h-10"
             resizeMode="contain"
           />
-        </View>
+        </TouchableOpacity>
 
         {/* MENU CHÍNH */}
         <ScrollView horizontal showsHorizontalScrollIndicator={false} className="flex-1 mx-2">
           {['SETUP', 'OPERATIONS', 'REPORTS'].map((menuKey) => {
-            // Map tên hiển thị
             const menuLabel = { SETUP: 'THIẾT LẬP', OPERATIONS: 'NGHIỆP VỤ', REPORTS: 'BÁO CÁO' };
             const isActive = activeMenu === menuKey;
             return (
@@ -87,15 +81,15 @@ export default function Header({ defaultActiveMenu = null, activeSubMenu = null,
           })}
         </ScrollView>
 
-        {/* RIGHT ICONS (Notification & User) - GIỮ NGUYÊN CODE CŨ */}
+        {/* RIGHT ICONS */}
         <View className="flex-row items-center">
-          <TouchableOpacity className="mx-2 relative" onPress={() => { setShowNotifications(!showNotifications); setShowUserMenu(false); setActiveMenu(null); }}>
+          <TouchableOpacity className="mx-2 relative" onPress={() => { setShowNotifications(!showNotifications); setShowUserMenu(false); }}>
             <NotificationIcon />
             <View className="absolute -top-1 -right-1 bg-red-600 rounded-full w-4 h-4 justify-center items-center">
               <Text className="text-[10px] text-white font-bold">0</Text>
             </View>
           </TouchableOpacity>
-          <TouchableOpacity className="mx-2" onPress={() => { setShowUserMenu(!showUserMenu); setShowNotifications(false); setActiveMenu(null); }}>
+          <TouchableOpacity className="mx-2" onPress={() => { setShowUserMenu(!showUserMenu); setShowNotifications(false); }}>
             <UserIcon />
           </TouchableOpacity>
         </View>
@@ -104,24 +98,16 @@ export default function Header({ defaultActiveMenu = null, activeSubMenu = null,
       {/* --- SUB MENU BAR (MENU CON) --- */}
       {activeMenu && (
         <View className="bg-gray-200 border-b border-gray-300 py-2">
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} className="px-2">
+          <ScrollView horizontal showsHorizontalScrollIndicator={true} className="px-2">
             {MENU_DATA[activeMenu].map((item, index) => {
-              // --- LOGIC ACTIVE Ở ĐÂY ---
               const isActive = item.name === activeSubMenu;
-
               return (
                 <TouchableOpacity
                   key={index}
-                  className={`border rounded px-3 py-2 mr-2 ${isActive
-                    ? 'bg-white border-gray-400 shadow-sm' // Style khi Active
-                    : 'bg-white border-transparent opacity-70 border-gray-300' // Style khi Inactive
-                    }`}
-                  onPress={() => onSubMenuPress && onSubMenuPress(item)}
+                  className={`border rounded px-3 py-2 mr-2 ${isActive ? 'bg-white border-gray-400 shadow-sm' : 'bg-white border-transparent opacity-70 border-gray-300'}`}
+                  onPress={() => handleNavigate(item)}
                 >
-                  <Text className={`text-xs ${isActive
-                    ? 'text-gray-900 font-bold' // Text khi Active
-                    : 'text-gray-600 font-medium' // Text khi Inactive
-                    }`}>
+                  <Text className={`text-xs ${isActive ? 'text-gray-900 font-bold' : 'text-gray-600 font-medium'}`}>
                     {item.name}
                   </Text>
                 </TouchableOpacity>

@@ -16,12 +16,12 @@ import {
 import Svg, { Path } from 'react-native-svg';
 
 // COMPONENT DÙNG CHUNG
-import Header from '../../../components/Header';
-import ActionToolbar from '../../../components/ActionToolbar';
-import { SortIcon, TrashIcon } from '../../../components/Icons';
+import Header from '../../components/Header';
+import ActionToolbar from '../../components/ActionToolbar';
+import { SortIcon, TrashIcon } from '../../components/Icons';
 
 // API
-import receivingApi from '../../../api/receivingApi';
+import receivingApi from '../../api/receivingApi';
 
 // --- HELPER: MAP STATUS & TYPE (Giống PHP Backend) ---
 const getFormTypeText = (type) => {

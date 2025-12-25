@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 // URL gốc (Web.php -> Không có /api)
-const BASE_URL = 'http://localhost:8000/api'; 
+const BASE_URL = 'http://192.168.1.11:8000/api'; 
 
 const apiClient = axios.create({
     baseURL: BASE_URL,

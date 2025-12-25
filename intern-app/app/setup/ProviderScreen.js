@@ -15,12 +15,12 @@ import {
 } from 'react-native';
 
 // COMPONENT DÙNG CHUNG
-import Header from '../../../components/Header';
-import ActionToolbar from '../../../components/ActionToolbar';
-import { SortIcon } from '../../../components/Icons';
+import Header from '../../components/Header';
+import ActionToolbar from '../../components/ActionToolbar';
+import { SortIcon } from '../../components/Icons';
 
 // API
-import providerApi from '../../../api/providerApi';
+import providerApi from '../../api/providerApi';
 
 export default function ProviderScreen() {
     // --- STATE DỮ LIỆU ---

@@ -8,8 +8,11 @@ import {
   SafeAreaView, 
   KeyboardAvoidingView, 
   Platform, 
-  ScrollView 
+  ScrollView,
+  Alert 
 } from 'react-native';
+// 1. Import router từ expo-router
+import { router } from 'expo-router';
 
 export default function LoginScreen() {
   const [email, setEmail] = useState('');
@@ -18,8 +21,15 @@ export default function LoginScreen() {
 
   // Hàm xử lý đăng nhập
   const handleLogin = () => {
-    console.log({ email, password, rememberMe });
-    // Thêm logic gọi API login tại đây
+    // Demo logic kiểm tra đơn giản
+    // Sau này bạn thay thế bằng API call thực tế
+    
+    // Ví dụ: Cho phép đăng nhập luôn để test
+    console.log("Logging in with:", { email, password, rememberMe });
+
+    // 2. Chuyển hướng
+    // Sử dụng 'replace' thay vì 'push' để người dùng không thể bấm nút Back quay lại màn hình Login
+    router.replace('/(tabs)'); 
   };
 
   return (
@@ -37,9 +47,9 @@ export default function LoginScreen() {
             
             {/* --- LOGO SECTION --- */}
             <View className="mb-8">
-                {/* Lưu ý: Thay localhost bằng 10.0.2.2 nếu chạy máy ảo Android */}
                 <Image
-                    source={{ uri: "http://localhost:8000/images/Logo_ThienPhatTien_Final-01.png" }}
+                    // Lưu ý: Đảm bảo đường dẫn ảnh này hoạt động được trên thiết bị của bạn
+                    source={{ uri: "http://localhost:8000/images/loto-tpp.png" }} 
                     className="w-48 h-24" 
                     resizeMode="contain"
                 />
@@ -55,7 +65,7 @@ export default function LoginScreen() {
                     </Text>
                     <TextInput 
                         className="border border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 rounded-md p-3 text-base text-gray-900"
-                        placeholder="example@email.com"
+                        placeholder="admin@example.com"
                         placeholderTextColor="#9ca3af"
                         value={email}
                         onChangeText={setEmail}
@@ -79,13 +89,12 @@ export default function LoginScreen() {
                     />
                 </View>
 
-                {/* Remember Me Checkbox (Custom UI) */}
+                {/* Remember Me Checkbox */}
                 <View className="flex-row items-center mt-4">
                     <TouchableOpacity 
                         onPress={() => setRememberMe(!rememberMe)}
                         className="flex-row items-center"
                     >
-                        {/* Hình vuông Checkbox giả lập */}
                         <View className={`w-5 h-5 border rounded mr-2 items-center justify-center ${
                             rememberMe 
                                 ? 'bg-indigo-600 border-indigo-600' 
@@ -121,8 +130,6 @@ export default function LoginScreen() {
                 </View>
 
             </View> 
-            {/* End Form Card */}
-
           </View>
         </ScrollView>
       </KeyboardAvoidingView>

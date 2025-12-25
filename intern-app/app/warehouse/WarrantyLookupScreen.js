@@ -15,12 +15,12 @@ import {
 } from 'react-native';
 
 // COMPONENT DÙNG CHUNG
-import Header from '../../../components/Header';
-import ActionToolbar from '../../../components/ActionToolbar';
-import { SortIcon } from '../../../components/Icons';
+import Header from '../../components/Header';
+import ActionToolbar from '../../components/ActionToolbar';
+import { SortIcon } from '../../components/Icons';
 
 // API
-import warrantyApi from '../../../api/warrantyApi';
+import warrantyApi from '../../api/warrantyApi';
 
 export default function WarrantyLookupScreen() {
   // --- STATE ---

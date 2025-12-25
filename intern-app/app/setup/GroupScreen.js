@@ -11,12 +11,12 @@ import {
 } from 'react-native';
 
 // Import các component UI cũ của bạn
-import Header from '../../../components/Header';
-import ActionToolbar from '../../../components/ActionToolbar';
-import { SortIcon } from '../../../components/Icons'; // Giả sử icon này có thể nhận prop color/active
+import Header from '../../components/Header';
+import ActionToolbar from '../../components/ActionToolbar';
+import { SortIcon } from '../../components/Icons'; // Giả sử icon này có thể nhận prop color/active
 
 // Import API Service vừa tạo
-import groupApi from '../../../api/groupApi';
+import groupApi from '../../api/groupApi';
 
 export default function GroupScreen() {
     // --- STATE ---

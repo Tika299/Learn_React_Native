@@ -3,8 +3,8 @@ import axios from 'axios';
 
 // Thay đổi URL này thành địa chỉ server thực tế của bạn
 // Nếu chạy trên Android Emulator: http://10.0.2.2:8000/api
-// Nếu chạy trên iOS Simulator: http://localhost:8000/api
-const BASE_URL = 'http://localhost:8000/api'; 
+// Nếu chạy trên iOS Simulator: http://192.168.1.11:8000/api
+const BASE_URL = 'http://192.168.1.11:8000/api'; 
 
 // Cấu hình axios cơ bản (nên đưa vào file axiosClient riêng để tái sử dụng)
 const apiClient = axios.create({

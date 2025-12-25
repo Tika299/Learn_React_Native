@@ -6,12 +6,12 @@ import {
 } from 'react-native';
 
 // COMPONENT DÙNG CHUNG
-import Header from '../../../components/Header';
-import ActionToolbar from '../../../components/ActionToolbar';
-import { SortIcon } from '../../../components/Icons';
+import Header from '../../components/Header';
+import ActionToolbar from '../../components/ActionToolbar';
+import { SortIcon } from '../../components/Icons';
 
 // API
-import customerApi from '../../../api/customerApi';
+import customerApi from '../../api/customerApi';
 
 export default function CustomerScreen() {
     // --- STATE DỮ LIỆU ---

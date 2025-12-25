@@ -15,12 +15,12 @@ import {
 } from 'react-native';
 
 // 1. IMPORT CÁC COMPONENT DÙNG CHUNG
-import Header from '../../../components/Header';
-import ActionToolbar from '../../../components/ActionToolbar';
-import { SortIcon, TrashIcon } from '../../../components/Icons';
+import Header from '../../components/Header';
+import ActionToolbar from '../../components/ActionToolbar';
+import { SortIcon, TrashIcon } from '../../components/Icons';
 
 // API
-import userApi from '../../../api/userApi';
+import userApi from '../../api/userApi';
 
 export default function UserScreen() {
   // --- STATE DATA ---

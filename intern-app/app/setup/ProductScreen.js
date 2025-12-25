@@ -16,12 +16,12 @@ import {
 import Svg, { Path } from 'react-native-svg';
 
 // COMPONENT DÙNG CHUNG
-import Header from '../../../components/Header';
-import ActionToolbar from '../../../components/ActionToolbar';
-import { SortIcon, TrashIcon } from '../../../components/Icons';
+import Header from '../../components/Header';
+import ActionToolbar from '../../components/ActionToolbar';
+import { SortIcon, TrashIcon } from '../../components/Icons';
 
 // API
-import productApi from '../../../api/productApi';
+import productApi from '../../api/productApi';
 
 export default function ProductScreen() {
   // --- STATE ---
