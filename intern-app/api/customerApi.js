@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 // URL gốc (Lưu ý: Bạn đang dùng web.php nên không có đuôi /api)
-const BASE_URL = 'http://192.168.1.11:8000/api'; 
+const BASE_URL = 'http://192.168.30.130:8000/api';
 
 const apiClient = axios.create({
     baseURL: BASE_URL,
@@ -16,28 +16,18 @@ const customerApi = {
      * Lấy danh sách khách hàng
      * params: { search, page, per_page, sort_by, sort_dir, group_id }
      */
-    getList: (params) => {
-        return apiClient.get('/customers', { params });
-    },
+    getList: (params) => apiClient.get('/customers', { params }),
 
-    /**
-     * Lấy danh sách nhóm khách hàng (Để dùng trong Modal lọc)
-     */
-    getGroups: () => {
-        return apiClient.get('/customers/groups');
-    },
+    getGroups: () => apiClient.get('/customers/groups'),
 
-    delete: (id) => {
-        return apiClient.delete(`/customers/${id}`);
-    },
+    // Thêm mới
+    create: (data) => apiClient.post('/customers', data),
 
-    create: (data) => {
-        return apiClient.post('/customers', data);
-    },
+    // Cập nhật
+    update: (id, data) => apiClient.put(`/customers/${id}`, data),
 
-    update: (id, data) => {
-        return apiClient.put(`/customers/${id}`, data);
-    }
+    // Xóa (Lưu ý: Route backend bạn đặt tên là 'detele' -> sai chính tả trong controller, nhưng phải gọi đúng tên đó)
+    delete: (id) => apiClient.delete(`/customers/${id}`),
 };
 
 export default customerApi;

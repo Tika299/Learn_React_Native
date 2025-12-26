@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 // URL gốc (Web.php -> Không có /api)
-const BASE_URL = 'http://192.168.1.11:8000/api'; 
+const BASE_URL = 'http://192.168.30.130:8000/api';
 
 const apiClient = axios.create({
     baseURL: BASE_URL,
@@ -13,27 +13,40 @@ const apiClient = axios.create({
 
 const userApi = {
     /**
-     * Lấy danh sách nhân viên
-     * Params: { search, page, per_page, sort_by, sort_dir, group_id, roles[], ma, ten, email... }
+     * Lấy danh sách nhân viên (kèm tìm kiếm, lọc)
+     * Params: search, page, roles, group_id...
      */
     getList: (params) => {
-        // Lưu ý: roles có thể là mảng, axios cần paramsSerializer nếu backend yêu cầu format đặc biệt
-        // Nhưng Laravel mặc định hiểu roles[]=1&roles[]=2
         return apiClient.get('/users', { params });
     },
 
     /**
-     * Lấy danh sách Nhóm nhân viên (Để lọc)
+     * Lấy danh sách nhóm (cho dropdown)
      */
     getGroups: () => {
         return apiClient.get('/users/groups');
     },
 
     /**
-     * Lấy danh sách Vai trò (Roles) (Để lọc)
+     * Lấy danh sách vai trò (cho dropdown)
      */
     getRoles: () => {
         return apiClient.get('/users/roles');
+    },
+
+    /**
+     * Tạo mới nhân viên
+     * Data: { name, email, password, group_id, role, ... }
+     */
+    create: (data) => {
+        return apiClient.post('/users', data);
+    },
+
+    /**
+     * Cập nhật nhân viên
+     */
+    update: (id, data) => {
+        return apiClient.put(`/users/${id}`, data);
     },
 
     /**
@@ -41,11 +54,7 @@ const userApi = {
      */
     delete: (id) => {
         return apiClient.delete(`/users/${id}`);
-    },
-
-    // Create / Update nếu cần
-    create: (data) => apiClient.post('/users', data),
-    update: (id, data) => apiClient.put(`/users/${id}`, data),
+    }
 };
 
 export default userApi;

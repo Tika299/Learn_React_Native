@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 // URL gốc API (Đảm bảo backend chạy route:clear)
-const BASE_URL = 'http://192.168.1.11:8000/api'; 
+const BASE_URL = 'http://192.168.30.130:8000/api'; 
 
 const apiClient = axios.create({
     baseURL: BASE_URL,

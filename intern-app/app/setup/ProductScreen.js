@@ -1,421 +1,259 @@
 import React, { useState, useEffect } from 'react';
 import { 
-  View, 
-  Text, 
-  SafeAreaView, 
-  ScrollView, 
-  FlatList, 
-  Alert, 
-  TouchableOpacity,
-  Modal,
-  TextInput,
-  ActivityIndicator,
-  RefreshControl,
-  Platform
+    View, Text, SafeAreaView, ScrollView, FlatList, Modal, Alert, 
+    TouchableOpacity, TextInput, ActivityIndicator, RefreshControl 
 } from 'react-native';
-import Svg, { Path } from 'react-native-svg';
 
-// COMPONENT DÙNG CHUNG
 import Header from '../../components/Header';
 import ActionToolbar from '../../components/ActionToolbar';
 import { SortIcon, TrashIcon } from '../../components/Icons';
 
-// API
 import productApi from '../../api/productApi';
 
 export default function ProductScreen() {
-  // --- STATE ---
-  const [searchText, setSearchText] = useState('');
-  const [products, setProducts] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [refreshing, setRefreshing] = useState(false);
-  
-  // Pagination & Count
-  const [page, setPage] = useState(1);
-  const [lastPage, setLastPage] = useState(1);
-  const [isLoadingMore, setIsLoadingMore] = useState(false);
-  const [totalProducts, setTotalProducts] = useState(0);
+    // --- STATE DATA ---
+    const [products, setProducts] = useState([]);
+    const [groups, setGroups] = useState([]);
+    const [loading, setLoading] = useState(false);
+    const [refreshing, setRefreshing] = useState(false);
+    
+    const [page, setPage] = useState(1);
+    const [lastPage, setLastPage] = useState(1);
+    
+    const [searchText, setSearchText] = useState('');
+    const [sortBy, setSortBy] = useState('id');
+    const [sortDir, setSortDir] = useState('desc');
 
-  // Sort
-  const [sortBy, setSortBy] = useState('id');
-  const [sortDir, setSortDir] = useState('desc');
+    // --- FORM STATE (Thêm/Sửa) ---
+    const [formModalVisible, setFormModalVisible] = useState(false);
+    const [isEditing, setIsEditing] = useState(false);
+    const [editId, setEditId] = useState(null);
+    const [formData, setFormData] = useState({
+        product_code: '',
+        product_name: '',
+        brand: '',
+        warranty: '', // Tháng
+        group_id: null,
+    });
 
-  // Filter Modal
-  const [filterModalVisible, setFilterModalVisible] = useState(false);
-  const [productGroups, setProductGroups] = useState([]);
-  // Filter Values
-  const [filterValues, setFilterValues] = useState({
-      ma: '',
-      ten: '',
-      hang: '',
-      group_id: null // ID nhóm đang chọn
-  });
+    // --- FILTER STATE ---
+    const [filterModalVisible, setFilterModalVisible] = useState(false);
+    const [filterValues, setFilterValues] = useState({
+        ma: '', ten: '', brand: '', group_id: null
+    });
 
-  // --- EFFECT ---
+    // --- EFFECT ---
+    useEffect(() => { fetchGroups(); }, []);
+    
+    useEffect(() => {
+        const timer = setTimeout(() => { fetchProducts(1, true); }, 500);
+        return () => clearTimeout(timer);
+    }, [searchText, sortBy, sortDir]);
 
-  // 1. Load danh sách nhóm khi vào màn hình
-  useEffect(() => {
-    fetchGroups();
-  }, []);
+    // --- API CALLS ---
+    const fetchGroups = async () => {
+        try {
+            const res = await productApi.getGroups();
+            if (res.data.success) setGroups(res.data.data);
+        } catch (e) { console.error(e); }
+    };
 
-  // 2. Load sản phẩm (Debounce)
-  useEffect(() => {
-    const timer = setTimeout(() => {
-        fetchProducts(1, true);
-    }, 500);
-    return () => clearTimeout(timer);
-  }, [searchText, sortBy, sortDir]);
-
-  // --- API FUNCTIONS ---
-
-  const fetchGroups = async () => {
-    try {
-        const res = await productApi.getGroups();
-        if (res.data.success) {
-            setProductGroups(res.data.data);
-        }
-    } catch (err) {
-        console.error("Lỗi lấy nhóm hàng:", err);
-    }
-  };
-
-  const fetchProducts = async (pageNumber = 1, isRefresh = false) => {
-    if (pageNumber === 1 && !isRefresh) setLoading(true);
-    try {
-        const params = {
-            page: pageNumber,
-            per_page: 20,
-            search: searchText,
-            sort_by: sortBy,
-            sort_dir: sortDir,
-            // Spread Filter Values
-            ...filterValues
-        };
-
-        const response = await productApi.getList(params);
-        const result = response.data;
-
-        if (result.success) {
-            if (isRefresh || pageNumber === 1) {
-                setProducts(result.data);
-            } else {
-                setProducts(prev => [...prev, ...result.data]);
+    const fetchProducts = async (pageNumber = 1, isRefresh = false) => {
+        if (pageNumber === 1 && !isRefresh) setLoading(true);
+        try {
+            const params = {
+                page: pageNumber, per_page: 20,
+                search: searchText, sort_by: sortBy, sort_dir: sortDir,
+                ...filterValues
+            };
+            const res = await productApi.getList(params);
+            if (res.data.success) {
+                const data = res.data.data;
+                setProducts(isRefresh ? data : [...products, ...data]);
+                setPage(res.data.pagination.current_page);
+                setLastPage(res.data.pagination.last_page);
             }
-            setPage(result.pagination.current_page);
-            setLastPage(result.pagination.last_page);
-            setTotalProducts(result.total); // Backend trả về key 'total'
+        } catch (error) {
+            console.error("Lỗi tải hàng hóa:", error);
+        } finally {
+            setLoading(false);
+            setRefreshing(false);
         }
-    } catch (error) {
-        console.error("Lỗi lấy hàng hóa:", error);
-    } finally {
-        setLoading(false);
-        setRefreshing(false);
-        setIsLoadingMore(false);
-    }
-  };
+    };
 
-  const handleDelete = (id, name) => {
-    Alert.alert(
-      "Xác nhận xóa",
-      `Bạn có chắc chắn muốn xóa sản phẩm ${name}?`,
-      [
-        { text: "Hủy", style: "cancel" },
-        { 
-            text: "Xóa", 
-            style: "destructive",
-            onPress: async () => {
+    // --- CRUD ---
+    const openAddModal = () => {
+        setIsEditing(false);
+        setFormData({ product_code: '', product_name: '', brand: '', warranty: '12', group_id: null });
+        setFormModalVisible(true);
+    };
+
+    const openEditModal = (item) => {
+        setIsEditing(true);
+        setEditId(item.id);
+        setFormData({
+            product_code: item.product_code,
+            product_name: item.product_name,
+            brand: item.brand || '',
+            warranty: item.warranty ? item.warranty.toString() : '0',
+            group_id: item.group_id,
+        });
+        setFormModalVisible(true);
+    };
+
+    const handleSave = async () => {
+        if (!formData.product_code || !formData.product_name) {
+            Alert.alert("Lỗi", "Vui lòng nhập Mã và Tên hàng hóa");
+            return;
+        }
+        try {
+            let res;
+            if (isEditing) res = await productApi.update(editId, formData);
+            else res = await productApi.create(formData);
+
+            if (res.data.success) {
+                Alert.alert("Thành công", isEditing ? "Đã cập nhật" : "Đã thêm mới");
+                setFormModalVisible(false);
+                fetchProducts(1, true);
+            } else {
+                Alert.alert("Lỗi", res.data.message);
+            }
+        } catch (error) {
+            const errors = error.response?.data?.errors;
+            if (errors) Alert.alert("Lỗi dữ liệu", Object.values(errors)[0][0]);
+            else Alert.alert("Lỗi", "Không thể lưu dữ liệu");
+        }
+    };
+
+    const handleDelete = (id, name) => {
+        Alert.alert("Xác nhận", `Xóa hàng hóa: ${name}?`, [
+            { text: "Hủy", style: "cancel" },
+            { text: "Xóa", style: "destructive", onPress: async () => {
                 try {
                     const res = await productApi.delete(id);
                     if (res.data.success) {
-                        Alert.alert("Thành công", "Đã xóa sản phẩm");
-                        // Refresh lại list
+                        Alert.alert("Thành công", "Đã xóa");
                         fetchProducts(1, true);
+                    } else {
+                        Alert.alert("Lỗi", res.data.message);
                     }
-                } catch (error) {
-                    // Nếu lỗi 422 (Có serial...)
-                    const msg = error.response?.data?.message || "Không thể xóa sản phẩm";
-                    Alert.alert("Lỗi", msg);
-                }
-            }
-        }
-      ]
+                } catch (e) { Alert.alert("Lỗi", "Không thể xóa"); }
+            }}
+        ]);
+    };
+
+    const handleSort = (field) => {
+        if (sortBy === field) setSortDir(sortDir === 'asc' ? 'desc' : 'asc');
+        else { setSortBy(field); setSortDir('asc'); }
+    };
+
+    // --- RENDER ---
+    const renderTableRow = ({ item }) => (
+        <TouchableOpacity onPress={() => openEditModal(item)} className="flex-row border-b border-gray-100 py-3 bg-white items-center">
+            <View className="w-28 px-4"><Text className="text-sm font-medium text-gray-800">{item.product_code}</Text></View>
+            <View className="w-56 px-4"><Text className="text-sm font-bold text-blue-700">{item.product_name}</Text></View>
+            <View className="w-24 px-4"><Text className="text-sm text-gray-600">{item.brand}</Text></View>
+            <View className="w-24 px-4"><Text className="text-sm text-gray-600">{item.warranty} tháng</Text></View>
+            <View className="w-16 px-2 items-center">
+                <TouchableOpacity onPress={() => handleDelete(item.id, item.product_name)} className="p-2 bg-gray-100 rounded-full">
+                    <TrashIcon />
+                </TouchableOpacity>
+            </View>
+        </TouchableOpacity>
     );
-  };
 
-  // --- HANDLERS ---
-  const handleSort = (field) => {
-    if (sortBy === field) {
-        setSortDir(sortDir === 'asc' ? 'desc' : 'asc');
-    } else {
-        setSortBy(field);
-        setSortDir('asc');
-    }
-  };
+    return (
+        <SafeAreaView className="flex-1 bg-gray-100">
+            <Header defaultActiveMenu="SETUP" activeSubMenu="Hàng hoá" />
+            <ActionToolbar searchText={searchText} setSearchText={setSearchText} onCreatePress={openAddModal} onFilterPress={() => setFilterModalVisible(true)} />
 
-  const onRefresh = () => {
-    setRefreshing(true);
-    fetchProducts(1, true);
-  };
-
-  const onLoadMore = () => {
-    if (!isLoadingMore && page < lastPage) {
-        setIsLoadingMore(true);
-        fetchProducts(page + 1, false);
-    }
-  };
-
-  const handleApplyFilter = () => {
-    setFilterModalVisible(false);
-    fetchProducts(1, true);
-    Alert.alert("Thông báo", "Đã áp dụng bộ lọc");
-  };
-
-  const handleClearFilter = () => {
-    setFilterValues({ ma: '', ten: '', hang: '', group_id: null });
-    setFilterModalVisible(false);
-    fetchProducts(1, true);
-  };
-
-  const handleSubMenuPress = (item) => {
-    Alert.alert("Chuyển trang", item.name);
-  };
-
-  // Lấy tên nhóm đang chọn để hiển thị
-  const getCurrentGroupName = () => {
-      if (!filterValues.group_id) return "Chưa chọn nhóm (Tất cả)";
-      const group = productGroups.find(g => g.id === filterValues.group_id);
-      return group ? group.group_name : "Nhóm không xác định";
-  };
-
-  // --- RENDER HEADER BẢNG ---
-  const renderTableHeader = () => (
-    <View className="flex-row bg-gray-100 border-b border-gray-200 py-3">
-        <TouchableOpacity 
-            className="w-40 px-4 flex-row items-center border-r border-gray-200"
-            onPress={() => handleSort('code')}
-        >
-            <Text className={`text-xs font-bold mr-1 ${sortBy === 'code' ? 'text-blue-600' : 'text-gray-700'}`}>Mã hàng</Text>
-            <SortIcon color={sortBy === 'code' ? '#2563EB' : '#9CA3AF'}/>
-        </TouchableOpacity>
-
-        <TouchableOpacity 
-            className="w-60 px-4 flex-row items-center border-r border-gray-200"
-            onPress={() => handleSort('name')}
-        >
-            <Text className={`text-xs font-bold mr-1 ${sortBy === 'name' ? 'text-blue-600' : 'text-gray-700'}`}>Tên hàng</Text>
-            <SortIcon color={sortBy === 'name' ? '#2563EB' : '#9CA3AF'}/>
-        </TouchableOpacity>
-
-        <TouchableOpacity 
-            className="w-32 px-4 flex-row items-center border-r border-gray-200"
-            onPress={() => handleSort('brand')}
-        >
-            <Text className={`text-xs font-bold mr-1 ${sortBy === 'brand' ? 'text-blue-600' : 'text-gray-700'}`}>Hãng</Text>
-            <SortIcon color={sortBy === 'brand' ? '#2563EB' : '#9CA3AF'}/>
-        </TouchableOpacity>
-
-        <View className="w-16 px-2 flex-row items-center justify-center">
-            <Text className="text-xs font-bold text-gray-700">Xóa</Text>
-        </View>
-    </View>
-  );
-
-  // --- RENDER DÒNG DỮ LIỆU ---
-  const renderTableRow = ({ item }) => (
-    <View className="flex-row border-b border-gray-100 py-3 bg-white items-center">
-        <View className="w-40 px-4">
-            <Text className="text-sm font-medium text-purple-700">{item.code}</Text>
-        </View>
-        <View className="w-60 px-4">
-            <Text className="text-sm text-gray-800">{item.name}</Text>
-        </View>
-        <View className="w-32 px-4">
-            <Text className="text-sm text-gray-600">{item.brand}</Text>
-        </View>
-        <View className="w-16 px-2 items-center justify-center">
-            <TouchableOpacity 
-                onPress={() => handleDelete(item.id, item.name)}
-                className="p-2 bg-gray-100 rounded-full"
-            >
-                <TrashIcon />
-            </TouchableOpacity>
-        </View>
-    </View>
-  );
-
-  return (
-    <SafeAreaView className="flex-1 bg-gray-100">
-      <Header 
-        defaultActiveMenu="SETUP"
-        activeSubMenu="Hàng hoá"
-        onSubMenuPress={handleSubMenuPress}
-      />
-
-      <ActionToolbar 
-        searchText={searchText}
-        setSearchText={setSearchText}
-        onCreatePress={() => Alert.alert("Thông báo", "Tạo mới hàng hóa")}
-        onFilterPress={() => setFilterModalVisible(true)}
-      />
-
-      {/* Table Content */}
-      <View className="flex-1 bg-white px-3 py-2">
-        <View className="flex-1 border border-gray-200 rounded-lg overflow-hidden bg-white">
-            <ScrollView horizontal showsHorizontalScrollIndicator={true} contentContainerStyle={{flexGrow: 1}}>
-                <View>
-                    {/* Header: Hiển thị nhóm đang chọn */}
-                    <TouchableOpacity 
-                        className="bg-white border-b border-gray-200 p-3"
-                        onPress={() => setFilterModalVisible(true)}
-                    >
-                        <Text className="text-purple-700 font-medium text-sm">
-                            Nhóm hàng hóa: <Text className="font-bold">{getCurrentGroupName()}</Text>
-                            <Text className="text-gray-400 text-xs ml-2"> (Nhấn để lọc)</Text>
-                        </Text>
-                    </TouchableOpacity>
-
-                    {renderTableHeader()}
-
-                    {loading && page === 1 ? (
-                         <View className="p-10 w-screen items-center">
-                            <ActivityIndicator size="large" color="#2563EB" />
+            <View className="flex-1 bg-white px-3 py-2">
+                <ScrollView horizontal contentContainerStyle={{flexGrow: 1}}>
+                    <View>
+                        <View className="flex-row bg-gray-100 border-b border-gray-200 py-3">
+                            <TouchableOpacity onPress={() => handleSort('code')} className="w-28 px-4 flex-row items-center"><Text className="font-bold text-gray-700 mr-1">Mã hàng</Text><SortIcon color={sortBy==='code'?'#2563EB':'#9CA3AF'}/></TouchableOpacity>
+                            <TouchableOpacity onPress={() => handleSort('name')} className="w-56 px-4 flex-row items-center"><Text className="font-bold text-gray-700 mr-1">Tên hàng</Text><SortIcon color={sortBy==='name'?'#2563EB':'#9CA3AF'}/></TouchableOpacity>
+                            <View className="w-24 px-4"><Text className="font-bold text-gray-700">Hãng</Text></View>
+                            <View className="w-24 px-4"><Text className="font-bold text-gray-700">Bảo hành</Text></View>
+                            <View className="w-16 px-2 text-center"><Text className="font-bold text-gray-700">Xóa</Text></View>
                         </View>
-                    ) : (
+                        {loading && page === 1 ? <ActivityIndicator size="large" color="blue" className="mt-4"/> :
                         <FlatList 
-                            data={products}
-                            renderItem={renderTableRow}
-                            keyExtractor={item => item.id.toString()}
-                            refreshControl={
-                                <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-                            }
-                            onEndReached={onLoadMore}
-                            onEndReachedThreshold={0.5}
-                            ListFooterComponent={
-                                isLoadingMore ? <ActivityIndicator size="small" color="#0000ff" className="py-4"/> : null
-                            }
-                            ListEmptyComponent={
-                                <View className="p-10 w-screen items-center justify-center">
-                                    <Text className="text-gray-500 italic">Không có hàng hóa nào</Text>
-                                </View>
-                            }
-                        />
-                    )}
-
-                    {/* Footer: Tổng số lượng */}
-                    <View className="bg-gray-50 border-t border-gray-200 p-3 flex-row justify-end items-center w-full">
-                         <Text className="text-purple-700 text-sm">
-                            SL hàng hoá: <Text className="font-bold">{totalProducts}</Text>
-                         </Text>
-                    </View>
-                </View>
-            </ScrollView>
-        </View>
-      </View>
-
-      {/* --- FILTER MODAL --- */}
-      <Modal
-        animationType="slide"
-        transparent={true}
-        visible={filterModalVisible}
-        onRequestClose={() => setFilterModalVisible(false)}
-      >
-        <TouchableOpacity 
-            className="flex-1 justify-end bg-black/50"
-            activeOpacity={1}
-            onPress={() => setFilterModalVisible(false)}
-        >
-             <View className="bg-white rounded-t-xl p-4 h-3/4 w-full">
-                <View className="flex-row justify-between items-center border-b border-gray-200 pb-3 mb-3">
-                    <Text className="text-lg font-bold text-gray-800">Bộ lọc Hàng hóa</Text>
-                    <TouchableOpacity onPress={() => setFilterModalVisible(false)}>
-                        <Text className="text-gray-500 font-bold">Đóng</Text>
-                    </TouchableOpacity>
-                </View>
-
-                <ScrollView showsVerticalScrollIndicator={false}>
-                    {/* Input Mã Hàng */}
-                    <View className="mb-4">
-                        <Text className="text-sm font-medium text-gray-700 mb-1">Mã hàng</Text>
-                        <TextInput
-                            className="border border-gray-300 rounded-md p-3 bg-gray-50"
-                            placeholder="Nhập mã hàng..."
-                            value={filterValues.ma}
-                            onChangeText={(val) => setFilterValues({...filterValues, ma: val})}
-                        />
-                    </View>
-
-                    {/* Input Tên Hàng */}
-                    <View className="mb-4">
-                        <Text className="text-sm font-medium text-gray-700 mb-1">Tên hàng</Text>
-                        <TextInput
-                            className="border border-gray-300 rounded-md p-3 bg-gray-50"
-                            placeholder="Nhập tên hàng..."
-                            value={filterValues.ten}
-                            onChangeText={(val) => setFilterValues({...filterValues, ten: val})}
-                        />
-                    </View>
-
-                    {/* Input Hãng */}
-                    <View className="mb-4">
-                        <Text className="text-sm font-medium text-gray-700 mb-1">Hãng sản xuất</Text>
-                        <TextInput
-                            className="border border-gray-300 rounded-md p-3 bg-gray-50"
-                            placeholder="Samsung, Apple,..."
-                            value={filterValues.hang}
-                            onChangeText={(val) => setFilterValues({...filterValues, hang: val})}
-                        />
-                    </View>
-
-                    {/* Chọn Nhóm Hàng */}
-                    <View className="mb-4">
-                        <Text className="text-sm font-medium text-gray-700 mb-2">Nhóm hàng hóa</Text>
-                        <View className="flex-row flex-wrap">
-                            <TouchableOpacity
-                                className={`px-3 py-2 rounded-full border mr-2 mb-2 ${
-                                    filterValues.group_id === null ? 'bg-blue-100 border-blue-500' : 'bg-gray-100 border-gray-300'
-                                }`}
-                                onPress={() => setFilterValues({...filterValues, group_id: null})}
-                            >
-                                <Text className={filterValues.group_id === null ? 'text-blue-700 font-bold' : 'text-gray-600'}>
-                                    Tất cả
-                                </Text>
-                            </TouchableOpacity>
-
-                            {productGroups.map(group => (
-                                <TouchableOpacity
-                                    key={group.id}
-                                    className={`px-3 py-2 rounded-full border mr-2 mb-2 ${
-                                        filterValues.group_id === group.id ? 'bg-blue-100 border-blue-500' : 'bg-gray-100 border-gray-300'
-                                    }`}
-                                    onPress={() => setFilterValues({...filterValues, group_id: group.id})}
-                                >
-                                    <Text className={filterValues.group_id === group.id ? 'text-blue-700 font-bold' : 'text-gray-600'}>
-                                        {group.group_name}
-                                    </Text>
-                                </TouchableOpacity>
-                            ))}
-                        </View>
+                            data={products} renderItem={renderTableRow} keyExtractor={i => i.id.toString()}
+                            refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => fetchProducts(1, true)} />}
+                            onEndReached={() => { if (!loading && page < lastPage) fetchProducts(page + 1); }}
+                            ListEmptyComponent={<View className="p-10"><Text className="text-center text-gray-500">Không có dữ liệu</Text></View>}
+                        />}
                     </View>
                 </ScrollView>
+            </View>
 
-                <View className="mt-4 pt-3 border-t border-gray-200 flex-row">
-                    <TouchableOpacity 
-                        className="flex-1 bg-gray-200 p-3 rounded-md mr-2 items-center"
-                        onPress={handleClearFilter}
-                    >
-                        <Text className="text-gray-700 font-bold">Đặt lại</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity 
-                        className="flex-1 bg-blue-600 p-3 rounded-md items-center"
-                        onPress={handleApplyFilter}
-                    >
-                        <Text className="text-white font-bold">Áp dụng</Text>
-                    </TouchableOpacity>
+            {/* MODAL FORM */}
+            <Modal animationType="slide" transparent={true} visible={formModalVisible} onRequestClose={() => setFormModalVisible(false)}>
+                <View className="flex-1 justify-end bg-black/50">
+                    <View className="bg-white rounded-t-xl p-5 h-[80%]">
+                        <View className="flex-row justify-between mb-4 border-b pb-2">
+                            <Text className="text-xl font-bold text-blue-800">{isEditing ? 'Cập nhật Hàng hóa' : 'Thêm Hàng hóa'}</Text>
+                            <TouchableOpacity onPress={() => setFormModalVisible(false)}><Text className="font-bold text-lg text-gray-500">✕</Text></TouchableOpacity>
+                        </View>
+                        <ScrollView showsVerticalScrollIndicator={false}>
+                            <View className="mb-3"><Text className="text-gray-700 mb-1 font-bold">Mã hàng <Text className="text-red-500">*</Text></Text>
+                                <TextInput className="border p-3 rounded" value={formData.product_code} onChangeText={t => setFormData({...formData, product_code: t})} placeholder="SP001" />
+                            </View>
+                            <View className="mb-3"><Text className="text-gray-700 mb-1 font-bold">Tên hàng <Text className="text-red-500">*</Text></Text>
+                                <TextInput className="border p-3 rounded" value={formData.product_name} onChangeText={t => setFormData({...formData, product_name: t})} placeholder="Laptop Dell..." />
+                            </View>
+                            <View className="flex-row justify-between">
+                                <View className="mb-3 w-[48%]"><Text className="text-gray-700 mb-1">Hãng (Brand)</Text>
+                                    <TextInput className="border p-3 rounded" value={formData.brand} onChangeText={t => setFormData({...formData, brand: t})} placeholder="Dell, Apple..." />
+                                </View>
+                                <View className="mb-3 w-[48%]"><Text className="text-gray-700 mb-1">Bảo hành (Tháng)</Text>
+                                    <TextInput className="border p-3 rounded" value={formData.warranty} onChangeText={t => setFormData({...formData, warranty: t})} keyboardType="numeric" />
+                                </View>
+                            </View>
+                            
+                            <View className="mb-4"><Text className="text-gray-700 mb-2 font-bold">Nhóm hàng</Text>
+                                <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                                    {groups.map(g => (
+                                        <TouchableOpacity key={g.id} className={`mr-2 px-4 py-2 rounded-full border ${formData.group_id === g.id ? 'bg-blue-100 border-blue-500' : 'bg-gray-50 border-gray-300'}`} onPress={() => setFormData({...formData, group_id: g.id})}>
+                                            <Text className={formData.group_id === g.id ? 'text-blue-700 font-bold' : 'text-gray-600'}>{g.group_name}</Text>
+                                        </TouchableOpacity>
+                                    ))}
+                                </ScrollView>
+                            </View>
+                            <TouchableOpacity className="bg-blue-600 p-4 rounded-lg items-center mb-6" onPress={handleSave}>
+                                <Text className="text-white font-bold text-lg">{isEditing ? 'CẬP NHẬT' : 'THÊM MỚI'}</Text>
+                            </TouchableOpacity>
+                        </ScrollView>
+                    </View>
                 </View>
-             </View>
-        </TouchableOpacity>
-      </Modal>
+            </Modal>
 
-    </SafeAreaView>
-  );
+            {/* MODAL FILTER */}
+            <Modal animationType="slide" transparent={true} visible={filterModalVisible} onRequestClose={() => setFilterModalVisible(false)}>
+                <TouchableOpacity className="flex-1 justify-end bg-black/50" activeOpacity={1} onPress={() => setFilterModalVisible(false)}>
+                    <View className="bg-white rounded-t-xl p-4 h-[60%] w-full">
+                        <Text className="text-lg font-bold mb-3 border-b pb-2">Bộ lọc Hàng hóa</Text>
+                        <ScrollView>
+                            <View className="mb-3"><Text className="mb-1">Mã hàng</Text><TextInput className="border p-2 rounded" value={filterValues.ma} onChangeText={t => setFilterValues({...filterValues, ma: t})} /></View>
+                            <View className="mb-3"><Text className="mb-1">Tên hàng</Text><TextInput className="border p-2 rounded" value={filterValues.ten} onChangeText={t => setFilterValues({...filterValues, ten: t})} /></View>
+                            <View className="mb-3"><Text className="mb-1">Hãng</Text><TextInput className="border p-2 rounded" value={filterValues.brand} onChangeText={t => setFilterValues({...filterValues, brand: t})} /></View>
+                            <View className="mb-3"><Text className="mb-1">Nhóm hàng</Text>
+                                <View className="flex-row flex-wrap">
+                                    <TouchableOpacity onPress={() => setFilterValues({...filterValues, group_id: null})} className={`mr-2 mb-2 px-3 py-1 border rounded ${filterValues.group_id===null?'bg-blue-100':'bg-gray-50'}`}><Text>Tất cả</Text></TouchableOpacity>
+                                    {groups.map(g => (
+                                        <TouchableOpacity key={g.id} onPress={() => setFilterValues({...filterValues, group_id: g.id})} className={`mr-2 mb-2 px-3 py-1 border rounded ${filterValues.group_id===g.id?'bg-blue-100':'bg-gray-50'}`}><Text>{g.group_name}</Text></TouchableOpacity>
+                                    ))}
+                                </View>
+                            </View>
+                        </ScrollView>
+                        <View className="flex-row mt-3 border-t pt-3">
+                            <TouchableOpacity className="flex-1 bg-gray-200 p-3 rounded mr-2 items-center" onPress={() => { setFilterValues({ma:'', ten:'', brand:'', group_id: null}); setFilterModalVisible(false); fetchProducts(1, true); }}><Text>Đặt lại</Text></TouchableOpacity>
+                            <TouchableOpacity className="flex-1 bg-blue-600 p-3 rounded items-center" onPress={() => { setFilterModalVisible(false); fetchProducts(1, true); }}><Text className="text-white font-bold">Áp dụng</Text></TouchableOpacity>
+                        </View>
+                    </View>
+                </TouchableOpacity>
+            </Modal>
+        </SafeAreaView>
+    );
 }

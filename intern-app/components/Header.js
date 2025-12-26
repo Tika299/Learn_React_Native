@@ -56,7 +56,7 @@ export default function Header({ defaultActiveMenu = null, activeSubMenu = null 
   return (
     <View className="z-50 bg-white">
       {/* --- TOP BAR --- */}
-      <View className="bg-slate-800 flex-row items-center justify-between px-3 py-2 h-16 shadow-md z-50">
+      <View className="bg-slate-800 flex-row items-center justify-between px-3 pt-6 pe-1 h-28 shadow-md z-50">
         <TouchableOpacity onPress={() => router.push('/')} className="mr-2">
           {/* LOGO (Sửa lại uri nếu cần) */}
           <Image
