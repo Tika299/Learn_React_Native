@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 // URL gốc trỏ về api (Đảm bảo backend đã chạy route:clear)
-const BASE_URL = 'http://192.168.30.130:8000/api';
+const BASE_URL = 'http://localhost:8000/api';
 
 const apiClient = axios.create({
     baseURL: BASE_URL,
@@ -14,7 +14,7 @@ const apiClient = axios.create({
 const exportApi = {
     /**
      * Lấy danh sách phiếu xuất
-     * Params: { search, page, limit, sort_by, sort_dir, ma, note, serial, product_name, customer... }
+     * Params: { search, page, limit, ma, customer_id, warehouse_id, date_from, date_to... }
      */
     getList: (params) => {
         return apiClient.get('/exports/list', { params });
@@ -46,7 +46,12 @@ const exportApi = {
      */
     delete: (id) => {
         return apiClient.delete(`/exports/delete/${id}`);
-    }
+    },
+
+    // --- Helper lấy dữ liệu cho Dropdown ---
+    getCustomers: () => apiClient.get('/customers'), // Lấy danh sách khách hàng (hoặc endpoint list customer)
+    getWarehouses: () => apiClient.get('/warehouses'),
+    getProducts: () => apiClient.get('/products'),
 };
 
 export default exportApi;

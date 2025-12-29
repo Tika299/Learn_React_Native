@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 // URL gốc API
-const BASE_URL = 'http://192.168.30.130:8000/api';
+const BASE_URL = 'http://localhost:8000/api';
 
 const apiClient = axios.create({
     baseURL: BASE_URL,
@@ -12,39 +12,21 @@ const apiClient = axios.create({
 });
 
 const receivingApi = {
-    /**
-     * Lấy danh sách phiếu tiếp nhận
-     * Params: search, page, limit, sort_by, sort_dir...
-     */
-    getList: (params) => {
-        return apiClient.get('/receivings/list', { params });
-    },
+    getList: (params) => apiClient.get('/receivings/list', { params }),
 
-    /**
-     * Lấy chi tiết
-     */
-    getDetail: (id) => {
-        return apiClient.get(`/receivings/detail/${id}`);
-    },
+    getDetail: (id) => apiClient.get(`/receivings/detail/${id}`),
 
-    /**
-     * Xóa phiếu
-     */
-    delete: (id) => {
-        return apiClient.delete(`/receivings/delete/${id}`);
-    },
-
-    /**
-     * Cập nhật trạng thái nhanh
-     * Data: { recei: id_phieu, status: number_status }
-     */
-    updateStatus: (data) => {
-        return apiClient.post('/receivings/update-status', data);
-    },
-
-    // Các hàm create/update đầy đủ nếu cần
     create: (data) => apiClient.post('/receivings/add', data),
+
     update: (id, data) => apiClient.put(`/receivings/change/${id}`, data),
+
+    delete: (id) => apiClient.delete(`/receivings/delete/${id}`),
+
+    updateStatus: (data) => apiClient.post('/receivings/update-status', data),
+
+    // --- Helpers Dropdown ---
+    getCustomers: () => apiClient.get('/customers'), // Lấy danh sách khách
+    getProducts: () => apiClient.get('/products'),          // Lấy danh sách sản phẩm
 };
 
 export default receivingApi;

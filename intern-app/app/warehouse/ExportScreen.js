@@ -1,325 +1,458 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  View, 
-  Text, 
-  SafeAreaView, 
-  ScrollView, 
-  FlatList, 
-  Alert, 
-  TouchableOpacity,
-  ActivityIndicator,
-  RefreshControl,
-  Modal,
-  TextInput,
-  Platform
+import {
+    View, Text, SafeAreaView, ScrollView, FlatList, Alert,
+    TouchableOpacity, TextInput, ActivityIndicator, RefreshControl, Modal, Pressable
 } from 'react-native';
-import Svg, { Path } from 'react-native-svg';
 
-// COMPONENT DÙNG CHUNG
 import Header from '../../components/Header';
 import ActionToolbar from '../../components/ActionToolbar';
 import { SortIcon, TrashIcon } from '../../components/Icons';
+import DropdownSelect from '../../components/DropdownSelect';
 
 // API
 import exportApi from '../../api/exportApi';
 
 export default function ExportScreen() {
-  // --- STATE DỮ LIỆU ---
-  const [searchText, setSearchText] = useState('');
-  const [exports, setExports] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [refreshing, setRefreshing] = useState(false);
+    // --- STATE LIST ---
+    const [exports, setExports] = useState([]);
+    const [loading, setLoading] = useState(false);
+    const [refreshing, setRefreshing] = useState(false);
 
-  // Pagination
-  const [page, setPage] = useState(1);
-  const [lastPage, setLastPage] = useState(1);
-  const [isLoadingMore, setIsLoadingMore] = useState(false);
-  const [totalRecords, setTotalRecords] = useState(0);
+    // Pagination
+    const [page, setPage] = useState(1);
+    const [lastPage, setLastPage] = useState(1);
+    const [totalRecords, setTotalRecords] = useState(0);
+    const [searchText, setSearchText] = useState('');
 
-  // Sorting
-  const [sortBy, setSortBy] = useState('id');
-  const [sortDir, setSortDir] = useState('desc');
+    // Sorting
+    const [sortBy, setSortBy] = useState('id');
+    const [sortDir, setSortDir] = useState('desc');
 
-  // Filter Modal
-  const [filterModalVisible, setFilterModalVisible] = useState(false);
-  
-  // Filter Values (Khớp với Controller Backend)
-  const [filterValues, setFilterValues] = useState({
-      ma: '',           // Mã phiếu
-      note: '',         // Ghi chú
-      customer_name: '',// Tên khách hàng (Frontend nhập tên để tìm)
-      user_name: '',    // Người lập phiếu
-      serial: '',       // Serial sản phẩm
-      product_name: ''  // Tên sản phẩm
-  });
+    // --- STATE DROPDOWN ---
+    const [customers, setCustomers] = useState([]);
+    const [warehouses, setWarehouses] = useState([]);
+    const [products, setProducts] = useState([]);
 
-  // --- EFFECT ---
-  useEffect(() => {
-    const timer = setTimeout(() => {
-        fetchExports(1, true);
-    }, 500); // Debounce
-    return () => clearTimeout(timer);
-  }, [searchText, sortBy, sortDir]);
+    // --- STATE FORM (Add/Edit) ---
+    const [isLoadingMore, setIsLoadingMore] = useState(false);
+    const [formVisible, setFormVisible] = useState(false);
+    const [isEditing, setIsEditing] = useState(false);
+    const [editId, setEditId] = useState(null);
 
-  // --- API FUNCTIONS ---
+    const [formData, setFormData] = useState({
+        export_code: '',
+        customer_id: null,
+        warehouse_id: null,
+        date_create: new Date().toISOString().split('T')[0],
+        note: '',
+        products: [] // Mảng: { product_id, quantity, serial }
+    });
 
-  const fetchExports = async (pageNumber = 1, isRefresh = false) => {
-    if (pageNumber === 1 && !isRefresh) setLoading(true);
-    try {
-        const params = {
-            page: pageNumber,
-            limit: 20, // Backend dùng 'limit' thay vì 'per_page' trong paginateForIndex
-            search: searchText,
-            sort_by: sortBy,
-            sort_dir: sortDir,
-            ...filterValues
-        };
+    // --- STATE FILTER ---
+    const [filterModalVisible, setFilterModalVisible] = useState(false);
+    const [filterValues, setFilterValues] = useState({
+        ma: '',
+        customer_id: null,
+        warehouse_id: null
+    });
 
-        const response = await exportApi.getList(params);
-        const result = response.data;
+    // --- EFFECT ---
+    useEffect(() => { fetchDropdowns(); }, []);
 
-        // Backend trả về: { success: true, data: { current_page, data: [], ... } }
-        // Hoặc: { status: true, data: { ... } } -> tùy controller list()
-        
-        if (result.status || result.success) {
-            const paginationData = result.data; // Object phân trang
-            const dataArray = paginationData.data || [];
+    useEffect(() => {
+        const timer = setTimeout(() => fetchExports(1, true), 500);
+        return () => clearTimeout(timer);
+    }, [searchText, sortBy, sortDir]);
 
-            if (isRefresh || pageNumber === 1) {
-                setExports(dataArray);
-            } else {
-                setExports(prev => [...prev, ...dataArray]);
+    // --- API FUNCTIONS ---
+
+    const fetchDropdowns = async () => {
+        try {
+            const [cRes, wRes, pRes] = await Promise.all([
+                exportApi.getCustomers(), // Cần đảm bảo endpoint này trả về list khách hàng
+                exportApi.getWarehouses(),
+                exportApi.getProducts()
+            ]);
+
+            // Xử lý dữ liệu trả về tùy theo cấu trúc API của bạn
+            if (cRes.data.data) setCustomers(cRes.data.data);
+            if (wRes.data.data) setWarehouses(wRes.data.data);
+            if (pRes.data.data) setProducts(pRes.data.data);
+
+        } catch (e) { console.log("Lỗi tải dữ liệu dropdown:", e); }
+    };
+
+    const fetchExports = async (pageNumber = 1, isRefresh = false) => {
+        if (pageNumber === 1 && !isRefresh) setLoading(true);
+        try {
+            const params = {
+                page: pageNumber,
+                limit: 20,
+                search: searchText,
+                sort_by: sortBy,
+                sort_dir: sortDir,
+                ...filterValues
+            };
+
+            const res = await exportApi.getList(params);
+            const result = res.data;
+
+            if (result.success || result.status) {
+                // --- SỬA LỖI TẠI ĐÂY ---
+                // API trả về: result.data (Pagination Object) -> result.data.data (Array Items)
+                const paginationData = result.data;
+                const dataList = paginationData.data || [];
+
+                if (isRefresh || pageNumber === 1) {
+                    setExports(dataList);
+                } else {
+                    setExports(prev => [...prev, ...dataList]);
+                }
+
+                // Cập nhật phân trang
+                setPage(paginationData.current_page || 1);
+                setLastPage(paginationData.last_page || 1);
+                setTotalRecords(paginationData.total || 0);
             }
-            
-            setPage(paginationData.current_page || 1);
-            setLastPage(paginationData.last_page || 1);
-            setTotalRecords(paginationData.total || 0);
+        } catch (error) {
+            console.error("Lỗi lấy danh sách:", error);
+        } finally {
+            setLoading(false);
+            setRefreshing(false);
+            setIsLoadingMore(false); // Đảm bảo tắt loading
         }
-    } catch (error) {
-        console.error("Lỗi lấy danh sách phiếu xuất:", error);
-    } finally {
-        setLoading(false);
-        setRefreshing(false);
-        setIsLoadingMore(false);
-    }
-  };
+    };
 
-  const handleDelete = (id, code) => {
-    Alert.alert(
-      "Xác nhận xóa",
-      `Bạn có chắc chắn muốn xóa phiếu xuất ${code}?`,
-      [
-        { text: "Hủy", style: "cancel" },
-        { 
-            text: "Xóa", 
-            style: "destructive",
-            onPress: async () => {
-                try {
-                    const res = await exportApi.delete(id);
-                    if (res.data.status || res.data.success) {
-                        Alert.alert("Thành công", "Đã xóa phiếu xuất");
-                        fetchExports(1, true);
-                    } else {
-                        // Trường hợp xóa thất bại nhưng backend trả về 200 kèm message
-                        Alert.alert("Lỗi", res.data.message || "Không thể xóa");
-                    }
-                } catch (error) {
-                    const msg = error.response?.data?.message || "Không thể xóa phiếu xuất";
-                    Alert.alert("Lỗi", msg);
+    // --- HANDLERS FORM ---
+
+    const openAddModal = () => {
+        setIsEditing(false);
+        setFormData({
+            export_code: `PX${Math.floor(Math.random() * 10000)}`, // Mã tự động demo
+            customer_id: null,
+            warehouse_id: null,
+            date_create: new Date().toISOString().split('T')[0],
+            note: '',
+            products: []
+        });
+        setFormVisible(true);
+    };
+
+    const openEditModal = async (item) => {
+        setIsEditing(true);
+        setEditId(item.id);
+        try {
+            const res = await exportApi.getDetail(item.id);
+            if (res.data.success) {
+                const d = res.data.data;
+                setFormData({
+                    export_code: d.export_code,
+                    customer_id: d.customer_id,
+                    warehouse_id: d.warehouse_id,
+                    date_create: d.date_create ? d.date_create.split(' ')[0] : '',
+                    note: d.note,
+                    // Map product_exports -> products
+                    products: d.product_export ? d.product_export.map(p => ({
+                        product_id: p.product_id,
+                        quantity: p.quantity,
+                        serial: p.serial_number ? p.serial_number.serial_code : '', // Lấy mã serial nếu có
+                        product_name: p.product ? p.product.product_name : ''
+                    })) : []
+                });
+                setFormVisible(true);
+            }
+        } catch (e) { Alert.alert("Lỗi", "Không lấy được chi tiết"); }
+    };
+
+    // Logic thêm/sửa/xóa dòng sản phẩm
+    const handleAddProductRow = () => {
+        setFormData({ ...formData, products: [...formData.products, { product_id: null, quantity: 1, serial: '' }] });
+    };
+    const handleUpdateRow = (index, field, value) => {
+        const newProds = [...formData.products];
+        newProds[index][field] = value;
+        setFormData({ ...formData, products: newProds });
+    };
+    const handleRemoveRow = (index) => {
+        const newProds = [...formData.products];
+        newProds.splice(index, 1);
+        setFormData({ ...formData, products: newProds });
+    };
+
+    const handleSave = async () => {
+        // Validate sơ bộ
+        if (!formData.customer_id || !formData.warehouse_id || formData.products.length === 0) {
+            Alert.alert("Thiếu thông tin", "Vui lòng chọn Khách hàng, Kho và ít nhất 1 sản phẩm.");
+            return;
+        }
+
+        try {
+            let res;
+            if (isEditing) res = await exportApi.update(editId, formData);
+            else res = await exportApi.create(formData);
+
+            if (res.data.success) {
+                Alert.alert("Thành công", isEditing ? "Đã cập nhật" : "Đã tạo phiếu xuất");
+                setFormVisible(false);
+                fetchExports(1, true);
+            } else {
+                Alert.alert("Lỗi", JSON.stringify(res.data.message));
+            }
+        } catch (e) {
+            Alert.alert("Lỗi", e.response?.data?.message || "Lỗi hệ thống");
+        }
+    };
+
+    const handleDelete = (id, code) => {
+        Alert.alert("Xác nhận", `Xóa phiếu xuất ${code}?`, [
+            { text: "Hủy" },
+            {
+                text: "Xóa", style: "destructive", onPress: async () => {
+                    try {
+                        const res = await exportApi.delete(id);
+                        if (res.data.success) {
+                            Alert.alert("Thành công");
+                            fetchExports(1, true);
+                        } else {
+                            Alert.alert("Lỗi", res.data.message);
+                        }
+                    } catch (e) { Alert.alert("Lỗi", "Không thể xóa"); }
                 }
             }
-        }
-      ]
+        ]);
+    };
+
+    // --- HANDLERS FILTER ---
+    const handleApplyFilter = () => {
+        setFilterModalVisible(false);
+        fetchExports(1, true);
+    };
+
+    const handleClearFilter = () => {
+        setFilterValues({ ma: '', customer_id: null, warehouse_id: null });
+        setFilterModalVisible(false);
+        fetchExports(1, true);
+    };
+
+    // --- RENDER TABLE ---
+    const renderTableRow = ({ item }) => (
+        <TouchableOpacity onPress={() => openEditModal(item)} className="flex-row border-b border-gray-100 py-3 bg-white items-center">
+            {/* Mã phiếu */}
+            <View className="w-28 px-4">
+                <Text className="text-sm font-bold text-purple-700">{item.export_code}</Text>
+            </View>
+
+            {/* Ngày lập: Cắt chuỗi để lấy YYYY-MM-DD */}
+            <View className="w-28 px-4">
+                <Text className="text-sm text-gray-800">
+                    {item.date_create ? item.date_create.split(' ')[0] : ''}
+                </Text>
+            </View>
+
+            {/* Khách hàng: Ưu tiên customername có sẵn ở root */}
+            <View className="w-40 px-4">
+                <Text className="text-sm text-gray-600" numberOfLines={1}>
+                    {item.customername || item.customer?.customer_name || '---'}
+                </Text>
+            </View>
+
+            {/* Kho (Tạm thời API chưa trả về tên kho ở root, lấy từ warehouse_id nếu chưa join) */}
+            {/* Nếu API đã join warehouses, hãy dùng item.warehouse_name */}
+            <View className="w-32 px-4">
+                <Text className="text-sm text-gray-600">
+                    {item.warehouse_name || ('Kho ' + item.warehouse_id)}
+                </Text>
+            </View>
+
+            {/* Nút Xóa */}
+            <View className="w-16 px-2 items-center">
+                <TouchableOpacity onPress={() => handleDelete(item.id, item.export_code)} className="p-2 bg-gray-100 rounded-full">
+                    <TrashIcon />
+                </TouchableOpacity>
+            </View>
+        </TouchableOpacity>
     );
-  };
 
-  // --- HANDLERS ---
-  const handleSort = (field) => {
-    if (sortBy === field) {
-        setSortDir(sortDir === 'asc' ? 'desc' : 'asc');
-    } else {
-        setSortBy(field);
-        setSortDir('asc');
-    }
-  };
+    return (
+        <SafeAreaView className="flex-1 bg-gray-100">
+            <Header defaultActiveMenu="OPERATIONS" activeSubMenu="Phiếu xuất hàng" />
+            <ActionToolbar
+                searchText={searchText} setSearchText={setSearchText}
+                onCreatePress={openAddModal}
+                onFilterPress={() => setFilterModalVisible(true)}
+            />
 
-  const onRefresh = () => {
-    setRefreshing(true);
-    fetchExports(1, true);
-  };
-
-  const onLoadMore = () => {
-    if (!isLoadingMore && page < lastPage) {
-        setIsLoadingMore(true);
-        fetchExports(page + 1, false);
-    }
-  };
-
-  const handleApplyFilter = () => {
-    setFilterModalVisible(false);
-    fetchExports(1, true);
-    Alert.alert("Thông báo", "Đã áp dụng bộ lọc");
-  };
-
-  const handleClearFilter = () => {
-    setFilterValues({ ma: '', note: '', customer_name: '', user_name: '', serial: '', product_name: '' });
-    setFilterModalVisible(false);
-    fetchExports(1, true);
-  };
-
-  const handleSubMenuPress = (item) => {
-    Alert.alert("Chuyển trang", item.name);
-  };
-
-  // --- RENDER TABLE HEADER ---
-  const renderTableHeader = () => (
-    <View className="flex-row bg-gray-100 border-b border-gray-200 py-3">
-        <TouchableOpacity className="w-28 px-4 flex-row items-center border-r border-gray-200" onPress={() => handleSort('export_code')}>
-            <Text className={`text-xs font-bold mr-1 ${sortBy === 'export_code' ? 'text-blue-600' : 'text-gray-700'}`}>Mã phiếu</Text>
-            <SortIcon color={sortBy === 'export_code' ? '#2563EB' : '#9CA3AF'}/>
-        </TouchableOpacity>
-
-        <TouchableOpacity className="w-28 px-4 flex-row items-center border-r border-gray-200" onPress={() => handleSort('date_create')}>
-            <Text className={`text-xs font-bold mr-1 ${sortBy === 'date_create' ? 'text-blue-600' : 'text-gray-700'}`}>Ngày lập</Text>
-            <SortIcon color={sortBy === 'date_create' ? '#2563EB' : '#9CA3AF'}/>
-        </TouchableOpacity>
-
-        <View className="w-48 px-4 flex-row items-center border-r border-gray-200">
-            <Text className="text-xs font-bold text-gray-700">Khách hàng</Text>
-        </View>
-        <View className="w-40 px-4 flex-row items-center border-r border-gray-200">
-            <Text className="text-xs font-bold text-gray-700">Người lập phiếu</Text>
-        </View>
-        <View className="w-48 px-4 flex-row items-center border-r border-gray-200">
-            <Text className="text-xs font-bold text-gray-700">Ghi chú</Text>
-        </View>
-        <View className="w-16 px-2 flex-row items-center justify-center">
-            <Text className="text-xs font-bold text-gray-700">Xóa</Text>
-        </View>
-    </View>
-  );
-
-  // --- RENDER TABLE ROW ---
-  const renderTableRow = ({ item }) => (
-    console.log(item),
-    <View className="flex-row border-b border-gray-100 py-3 bg-white items-center">
-        {/* Mã phiếu */}
-        <View className="w-28 px-4">
-            <Text className="text-sm font-medium text-purple-700">{item.export_code || item.code}</Text>
-        </View>
-        
-        {/* Ngày lập */}
-        <View className="w-28 px-4">
-            <Text className="text-sm text-gray-800">{item.date_create || item.date}</Text>
-        </View>
-        
-        {/* Khách hàng (Lấy từ relation customer) */}
-        <View className="w-48 px-4">
-            <Text className="text-sm text-gray-600" numberOfLines={1}>
-                {item.customer ? item.customer.customer_name : (item.customer_name || '---')}
-            </Text>
-        </View>
-
-        {/* Người lập (Lấy từ relation user) */}
-        <View className="w-40 px-4">
-            <Text className="text-sm text-gray-600">
-                {item.user ? item.user.name : (item.user_name || '---')}
-            </Text>
-        </View>
-
-        {/* Ghi chú */}
-        <View className="w-48 px-4">
-            <Text className="text-sm text-gray-600" numberOfLines={1}>{item.note}</Text>
-        </View>
-
-        {/* Nút Xóa */}
-        <View className="w-16 px-2 items-center justify-center">
-            <TouchableOpacity 
-                onPress={() => handleDelete(item.id, item.export_code)}
-                className="p-2 bg-gray-100 rounded-full"
-            >
-                <TrashIcon />
-            </TouchableOpacity>
-        </View>
-    </View>
-  );
-
-  return (
-    <SafeAreaView className="flex-1 bg-gray-100">
-      
-      <Header defaultActiveMenu="OPERATIONS" activeSubMenu="Phiếu xuất hàng" onSubMenuPress={handleSubMenuPress} />
-
-      <ActionToolbar 
-        searchText={searchText}
-        setSearchText={setSearchText}
-        onCreatePress={() => Alert.alert("Thông báo", "Tạo phiếu xuất mới")}
-        onFilterPress={() => setFilterModalVisible(true)}
-      />
-
-      <View className="flex-1 bg-white px-3 py-2">
-        <View className="flex-1 border border-gray-200 rounded-lg overflow-hidden bg-white">
-            <ScrollView horizontal showsHorizontalScrollIndicator={true} contentContainerStyle={{flexGrow: 1}}>
-                <View>
-                    {renderTableHeader()}
-
-                    {loading && page === 1 ? (
-                        <View className="p-10 w-screen items-center"><ActivityIndicator size="large" color="#2563EB" /></View>
-                    ) : (
-                        <FlatList 
-                            data={exports}
-                            renderItem={renderTableRow}
-                            keyExtractor={item => item.id.toString()}
-                            refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
-                            onEndReached={onLoadMore}
-                            onEndReachedThreshold={0.5}
-                            ListFooterComponent={isLoadingMore ? <ActivityIndicator size="small" color="#0000ff" className="py-4"/> : null}
-                            ListEmptyComponent={<View className="p-10 w-screen items-center"><Text className="text-gray-500 italic">Không có phiếu xuất nào</Text></View>}
-                        />
-                    )}
-                    
-                    <View className="bg-gray-50 border-t border-gray-200 p-3 flex-row justify-end items-center w-full">
-                         <Text className="text-purple-700 text-sm">Tổng số phiếu: <Text className="font-bold">{totalRecords || exports.length}</Text></Text>
-                    </View>
-                </View>
-            </ScrollView>
-        </View>
-      </View>
-
-      {/* --- MODAL FILTER --- */}
-      <Modal animationType="slide" transparent={true} visible={filterModalVisible} onRequestClose={() => setFilterModalVisible(false)}>
-        <TouchableOpacity className="flex-1 justify-end bg-black/50" activeOpacity={1} onPress={() => setFilterModalVisible(false)}>
-             <View className="bg-white rounded-t-xl p-4 h-3/4 w-full">
-                <View className="flex-row justify-between items-center border-b border-gray-200 pb-3 mb-3">
-                    <Text className="text-lg font-bold text-gray-800">Bộ lọc Phiếu xuất</Text>
-                    <TouchableOpacity onPress={() => setFilterModalVisible(false)}><Text className="text-gray-500 font-bold">Đóng</Text></TouchableOpacity>
-                </View>
-
-                <ScrollView showsVerticalScrollIndicator={false}>
-                    <View className="mb-4"><Text className="text-sm font-medium text-gray-700 mb-1">Mã phiếu</Text>
-                        <TextInput className="border border-gray-300 rounded-md p-3 bg-gray-50" value={filterValues.ma} onChangeText={(val) => setFilterValues({...filterValues, ma: val})} placeholder="Nhập mã phiếu..." />
-                    </View>
-                    <View className="mb-4"><Text className="text-sm font-medium text-gray-700 mb-1">Khách hàng</Text>
-                        <TextInput className="border border-gray-300 rounded-md p-3 bg-gray-50" value={filterValues.customer_name} onChangeText={(val) => setFilterValues({...filterValues, customer_name: val})} placeholder="Nhập tên khách hàng..." />
-                    </View>
-                    <View className="mb-4"><Text className="text-sm font-medium text-gray-700 mb-1">Người lập phiếu</Text>
-                        <TextInput className="border border-gray-300 rounded-md p-3 bg-gray-50" value={filterValues.user_name} onChangeText={(val) => setFilterValues({...filterValues, user_name: val})} placeholder="Nhập tên người lập..." />
-                    </View>
-                    <View className="mb-4"><Text className="text-sm font-medium text-gray-700 mb-1">Serial Sản phẩm</Text>
-                        <TextInput className="border border-gray-300 rounded-md p-3 bg-gray-50" value={filterValues.serial} onChangeText={(val) => setFilterValues({...filterValues, serial: val})} placeholder="Tìm theo Serial..." />
-                    </View>
-                    <View className="mb-4"><Text className="text-sm font-medium text-gray-700 mb-1">Ghi chú</Text>
-                        <TextInput className="border border-gray-300 rounded-md p-3 bg-gray-50" value={filterValues.note} onChangeText={(val) => setFilterValues({...filterValues, note: val})} placeholder="Nội dung ghi chú..." />
+            <View className="flex-1 bg-white px-3 py-2">
+                <ScrollView horizontal contentContainerStyle={{ flexGrow: 1 }}>
+                    <View>
+                        <View className="flex-row bg-gray-100 border-b border-gray-200 py-3">
+                            <View className="w-28 px-4"><Text className="font-bold text-gray-700">Mã phiếu</Text></View>
+                            <View className="w-28 px-4"><Text className="font-bold text-gray-700">Ngày lập</Text></View>
+                            <View className="w-40 px-4"><Text className="font-bold text-gray-700">Khách hàng</Text></View>
+                            <View className="w-32 px-4"><Text className="font-bold text-gray-700">Kho</Text></View>
+                            <View className="w-16 px-2 text-center"><Text className="font-bold text-gray-700">Xóa</Text></View>
+                        </View>
+                        {loading && page === 1 ? <ActivityIndicator size="large" color="blue" className="mt-4" /> :
+                            <FlatList
+                                data={exports} renderItem={renderTableRow} keyExtractor={i => i.id.toString()}
+                                refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => fetchExports(1, true)} />}
+                                ListEmptyComponent={<View className="p-10"><Text className="text-center text-gray-500">Không có dữ liệu</Text></View>}
+                            />}
+                        <View className="bg-gray-50 border-t p-2 items-end"><Text>Tổng số: {totalRecords}</Text></View>
                     </View>
                 </ScrollView>
+            </View>
 
-                <View className="mt-4 pt-3 border-t border-gray-200 flex-row">
-                    <TouchableOpacity className="flex-1 bg-gray-200 p-3 rounded-md mr-2 items-center" onPress={handleClearFilter}><Text className="text-gray-700 font-bold">Đặt lại</Text></TouchableOpacity>
-                    <TouchableOpacity className="flex-1 bg-blue-600 p-3 rounded-md items-center" onPress={handleApplyFilter}><Text className="text-white font-bold">Áp dụng</Text></TouchableOpacity>
+            {/* --- MODAL FORM (THÊM / SỬA) --- */}
+            <Modal animationType="slide" transparent={true} visible={formVisible} onRequestClose={() => setFormVisible(false)}>
+                <View className="flex-1 justify-end bg-black/50">
+                    <View className="bg-white rounded-t-xl p-5 h-[90%]">
+                        <View className="flex-row justify-between mb-4 border-b pb-2">
+                            <Text className="text-xl font-bold text-blue-800">{isEditing ? 'Sửa phiếu xuất' : 'Tạo phiếu xuất'}</Text>
+                            <TouchableOpacity onPress={() => setFormVisible(false)}><Text className="font-bold text-lg text-gray-500">✕</Text></TouchableOpacity>
+                        </View>
+                        <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+
+                            <Text className="font-bold text-gray-800 mb-2">I. Thông tin chung</Text>
+                            <View className="flex-row justify-between mb-3">
+                                <View className="w-[48%]"><Text className="mb-1">Mã phiếu</Text><TextInput className="border p-2 rounded bg-gray-100" value={formData.export_code} editable={!isEditing} /></View>
+                                <View className="w-[48%]"><Text className="mb-1">Ngày lập</Text><TextInput className="border p-2 rounded" value={formData.date_create} onChangeText={t => setFormData({ ...formData, date_create: t })} placeholder="YYYY-MM-DD" /></View>
+                            </View>
+
+                            {/* KHÁCH HÀNG */}
+                            <View className="mb-3">
+                                <Text className="mb-1 text-gray-700 font-medium">Khách hàng</Text>
+                                <DropdownSelect
+                                    data={customers}
+                                    labelField="customer_name" // <--- SỬA THÀNH 'customer_name'
+                                    valueField="id"
+                                    value={formData.customer_id}
+                                    onChange={(value) => setFormData({ ...formData, customer_id: value })}
+                                    placeholder="Chọn khách hàng..."
+                                    search={true} // Bật tìm kiếm
+                                />
+                            </View>
+
+                            {/* KHO */}
+                            <View className="mb-3">
+                                <Text className="mb-1 text-gray-700 font-medium">Kho xuất</Text>
+                                <DropdownSelect
+                                    data={warehouses}
+                                    value={formData.warehouse_id}
+                                    onChange={(value) => setFormData({ ...formData, warehouse_id: value })}
+                                    labelField="name" // Hoặc 'warehouse_name' tùy API kho trả về
+                                    valueField="id"
+                                    placeholder="Chọn kho..."
+                                />
+                            </View>
+
+                            {/* DANH SÁCH SẢN PHẨM */}
+                            <View className="flex-row justify-between items-center mt-4 mb-2">
+                                <Text className="font-bold text-gray-800">II. Danh sách hàng hóa</Text>
+                                <TouchableOpacity onPress={handleAddProductRow} className="bg-blue-500 px-3 py-1 rounded"><Text className="text-white text-xs">+ Thêm hàng</Text></TouchableOpacity>
+                            </View>
+
+                            {formData.products.map((item, index) => (
+                                <View key={index} className="border border-gray-200 rounded p-2 mb-2 bg-gray-50">
+                                    <View className="flex-row justify-between mb-2">
+                                        <Text className="font-bold">Sản phẩm #{index + 1}</Text>
+                                        <TouchableOpacity onPress={() => handleRemoveRow(index)}>
+                                            <Text className="text-red-500 text-xs">Xóa</Text>
+                                        </TouchableOpacity>
+                                    </View>
+
+                                    {/* Chọn Sản phẩm trong dòng chi tiết */}
+                                    <View className="mb-2">
+                                        <DropdownSelect
+                                            data={products}
+                                            value={item.product_id}
+                                            onChange={(value) => handleUpdateRow(index, 'product_id', value)}
+                                            labelField="product_name" // API sản phẩm trả về 'product_name'
+                                            valueField="id"
+                                            placeholder="Tìm sản phẩm..."
+                                            search={true} // Cho phép tìm kiếm
+                                        />
+                                    </View>
+
+                                    <View className="flex-row justify-between">
+                                        <View className="w-[48%]">
+                                            <Text className="mb-1 text-xs">Số lượng:</Text>
+                                            <TextInput
+                                                className="border p-1 rounded bg-white text-center"
+                                                value={item.quantity.toString()}
+                                                onChangeText={t => handleUpdateRow(index, 'quantity', parseInt(t) || 0)}
+                                                keyboardType="numeric"
+                                            />
+                                        </View>
+                                        <View className="w-[48%]">
+                                            <Text className="mb-1 text-xs">Serial (nếu có):</Text>
+                                            <TextInput
+                                                className="border p-1 rounded bg-white"
+                                                value={item.serial}
+                                                onChangeText={t => handleUpdateRow(index, 'serial', t)}
+                                                placeholder="Nhập serial..."
+                                            />
+                                        </View>
+                                    </View>
+                                </View>
+                            ))}
+
+                            <TouchableOpacity className="bg-blue-600 p-4 rounded-lg items-center mt-4 mb-6" onPress={handleSave}>
+                                <Text className="text-white font-bold text-lg">{isEditing ? 'CẬP NHẬT' : 'TẠO PHIẾU'}</Text>
+                            </TouchableOpacity>
+                        </ScrollView>
+                    </View>
                 </View>
-             </View>
-        </TouchableOpacity>
-      </Modal>
+            </Modal>
 
-    </SafeAreaView>
-  );
+            {/* --- MODAL FILTER --- */}
+            <Modal animationType="slide" transparent={true} visible={filterModalVisible} onRequestClose={() => setFilterModalVisible(false)}>
+                <Pressable className="flex-1 justify-end bg-black/50" onPress={() => setFilterModalVisible(false)}>
+                    <Pressable className="bg-white rounded-t-xl p-4 h-[70%] w-full" onPress={(e) => e.stopPropagation()}>
+                        <Text className="text-lg font-bold text-gray-800 mb-3 border-b pb-2">Bộ lọc Phiếu xuất</Text>
+
+                        <ScrollView keyboardShouldPersistTaps="handled">
+                            <View className="mb-4">
+                                <Text className="text-gray-700 mb-1">Mã phiếu</Text>
+                                <TextInput className="border p-3 rounded bg-gray-50" value={filterValues.ma} onChangeText={t => setFilterValues({ ...filterValues, ma: t })} />
+                            </View>
+
+                            {/* Filter Khách hàng */}
+                            <View className="mb-4">
+                                <Text className="text-gray-700 mb-1">Khách hàng</Text>
+                                <DropdownSelect
+                                    data={customers}
+                                    labelField="customer_name" // <--- SỬA THÀNH 'customer_name'
+                                    valueField="id"
+                                    value={formData.customer_id}
+                                    onChange={(value) => setFormData({ ...formData, customer_id: value })}
+                                    placeholder="Chọn khách hàng..."
+                                    search={true} // Bật tìm kiếm
+                                />
+                            </View>
+
+                            {/* Filter Kho */}
+                            <View className="mb-4">
+                                <Text className="text-gray-700 mb-1">Kho xuất</Text>
+                                <DropdownSelect
+                                    data={warehouses}
+                                    value={filterValues.warehouse_id}
+                                    onChange={(value) => setFilterValues({ ...filterValues, warehouse_id: value })}
+                                    labelField="name" // Check lại API trả về 'name' hay 'warehouse_name'
+                                    valueField="id"
+                                    placeholder="Tất cả kho"
+                                />
+                            </View>
+                        </ScrollView>
+
+                        <View className="mt-4 pt-3 border-t flex-row">
+                            <TouchableOpacity className="flex-1 bg-gray-200 p-3 rounded mr-2 items-center" onPress={handleClearFilter}><Text>Đặt lại</Text></TouchableOpacity>
+                            <TouchableOpacity className="flex-1 bg-blue-600 p-3 rounded items-center" onPress={handleApplyFilter}><Text className="text-white font-bold">Áp dụng</Text></TouchableOpacity>
+                        </View>
+                    </Pressable>
+                </Pressable>
+            </Modal>
+
+        </SafeAreaView>
+    );
 }

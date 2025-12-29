@@ -90,3 +90,9 @@ export const MoreIcon = () => (
         <Path d="M12 12h.01M12 6h.01M12 18h.01" strokeLinecap="round" strokeLinejoin="round"/>
     </Svg>
 );
+
+export const CloseIcon = ({ color = "#000", size = 24 }) => (
+  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <Path d="M18 6 6 18M6 6l12 12" />
+  </Svg>
+);

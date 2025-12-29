@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 // URL gốc (API)
-const BASE_URL = 'http://192.168.30.130:8000/api'; 
+const BASE_URL = 'http://localhost:8000/api';
 
 const apiClient = axios.create({
     baseURL: BASE_URL,
@@ -13,31 +13,18 @@ const apiClient = axios.create({
 
 const warrantyApi = {
     /**
-     * Lấy danh sách bảo hành (Đã được group theo Serial)
-     * Params: { 
-     *   search, page, per_page, sort_by, sort_dir, 
-     *   ma, ten, brand, sn, customer[], status...
-     * }
+     * Lấy danh sách bảo hành (đã phân trang)
+     * Params: search, page, limit, sort_by, sort_dir, ma, ten, sn, customer[], status...
      */
-    getList: (params) => {
-        return apiClient.get('/warranty', { params });
-    },
+    getList: (params) => apiClient.get('/warranty', { params }),
 
-    /**
-     * Lấy chi tiết bảo hành của 1 Serial
-     */
-    getDetailBySerial: (serialId) => {
-        return apiClient.get(`/warranty/${serialId}`);
-    },
+    // Dropdown Khách hàng
+    getCustomers: () => apiClient.get('/warranty/customers'),
 
-    /**
-     * Lấy danh sách khách hàng để lọc
-     */
-    getCustomers: () => {
-        return apiClient.get('/warranty/customers');
-    },
+    // Chi tiết (theo Serial ID hoặc Warranty ID tùy logic)
+    getDetail: (serialId) => apiClient.get(`/warranty/${serialId}`),
 
-    // Các hàm thêm/sửa/xóa nếu cần thiết
+    // Các chức năng thêm/sửa/xóa (nếu cần)
     create: (data) => apiClient.post('/warranty', data),
     update: (id, data) => apiClient.put(`/warranty/${id}`, data),
     delete: (id) => apiClient.delete(`/warranty/${id}`),
