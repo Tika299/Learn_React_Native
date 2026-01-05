@@ -13,40 +13,32 @@ const apiClient = axios.create({
 
 const transferApi = {
     /**
-     * Lấy danh sách phiếu chuyển kho
+     * Lấy danh sách phiếu chuyển
      * Params: search, page, limit, status, from_date, to_date...
      */
     getList: (params) => {
         return apiClient.get('/warehouse-transfer/list', { params });
     },
 
-    /**
-     * Lấy chi tiết phiếu
-     */
     getDetail: (id) => {
         return apiClient.get(`/warehouse-transfer/detail/${id}`);
     },
 
-    /**
-     * Tạo mới
-     */
     create: (data) => {
         return apiClient.post('/warehouse-transfer/add', data);
     },
 
-    /**
-     * Cập nhật
-     */
     update: (id, data) => {
         return apiClient.put(`/warehouse-transfer/change/${id}`, data);
     },
 
-    /**
-     * Xóa phiếu
-     */
     delete: (id) => {
         return apiClient.delete(`/warehouse-transfer/delete/${id}`);
-    }
+    },
+
+    // --- Helper ---
+    getWarehouses: () => apiClient.get('/warehouses'), // Để chọn kho nguồn/đích
+    getProducts: () => apiClient.get('/products'),     // Để chọn sản phẩm
 };
 
 export default transferApi;

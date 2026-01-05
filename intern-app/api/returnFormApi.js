@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 // URL gốc API
-const BASE_URL = 'http://localhost:8000/api'; 
+const BASE_URL = 'http://localhost:8000/api';
 
 const apiClient = axios.create({
     baseURL: BASE_URL,
@@ -14,40 +14,33 @@ const apiClient = axios.create({
 const returnFormApi = {
     /**
      * Lấy danh sách phiếu trả hàng
-     * Params: search, page, limit, sort_by, sort_dir...
+     * Params: search, page, limit, ma, recei_code, customer_id, status...
      */
     getList: (params) => {
-        return apiClient.get('/return-form/list', { params });
+        return apiClient.get('/return-forms/list', { params });
     },
 
-    /**
-     * Lấy chi tiết
-     */
     getDetail: (id) => {
-        return apiClient.get(`/return-form/detail/${id}`);
+        return apiClient.get(`/return-forms/detail/${id}`);
     },
 
-    /**
-     * Tạo mới
-     */
     create: (data) => {
-        return apiClient.post('/return-form/add', data);
+        return apiClient.post('/return-forms/add', data);
     },
 
-    /**
-     * Cập nhật
-     */
     update: (id, data) => {
-        return apiClient.put(`/return-form/change/${id}`, data);
+        return apiClient.put(`/return-forms/change/${id}`, data);
     },
 
-    /**
-     * Xóa phiếu
-     */
     delete: (id) => {
-        // Controller dùng method delete(Request $request, $id) nhưng route định nghĩa là /delete/{id}
-        return apiClient.delete(`/return-form/delete/${id}`);
-    }
+        return apiClient.delete(`/return-forms/delete/${id}`);
+    },
+
+    // --- Helpers Dropdown ---
+    getCustomers: () => apiClient.get('/customers'),
+    // Lấy danh sách phiếu tiếp nhận để chọn (để biết trả cho phiếu nào)
+    getReceivings: () => apiClient.get('/receivings/list'),
+    getProducts: () => apiClient.get('/products'),
 };
 
 export default returnFormApi;

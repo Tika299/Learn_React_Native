@@ -46,7 +46,10 @@ const quotationApi = {
      */
     delete: (id) => {
         return apiClient.delete(`/quotations/delete/${id}`);
-    }
+    },
+
+    getCustomers: () => apiClient.get('/customers'),
+    getReceivings: () => apiClient.get('/receivings/list'),
 };
 
 export default quotationApi;

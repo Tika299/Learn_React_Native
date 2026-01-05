@@ -12,39 +12,22 @@ const apiClient = axios.create({
 });
 
 const reportApi = {
-    // --- 1. TỔNG QUÁT ---
-    getOverview: () => {
-        return apiClient.get('/reports/overview');
-    },
-    // Lọc tổng quát (dataName: 'phieuXN', 'baoCaoTK'...)
-    filterOverview: (params) => {
-        return apiClient.get('/reports/filter-period', { params });
+    getOverview: () => apiClient.get('/reports/overview'),
+
+    // Sửa lại đường dẫn gọi API lọc
+    filterOverview: (dataName, dataValue) => {
+        return apiClient.get('/reports/filter-overview', {
+            params: {
+                dataName: dataName,
+                dataValue: dataValue
+            }
+        });
     },
 
-    // --- 2. XUẤT NHẬP ---
-    getExportImport: (params) => {
-        // Nếu có params (lọc), gọi API filter, ngược lại gọi API thường
-        if (params && Object.keys(params).length > 0) {
-            return apiClient.get('/reports/filter-export-import', { params });
-        }
-        return apiClient.get('/reports/export-import');
-    },
-
-    // --- 3. TIẾP NHẬN - TRẢ HÀNG ---
-    getReceiptReturn: (params) => {
-        if (params && Object.keys(params).length > 0) {
-            return apiClient.get('/reports/filter-receipt-return', { params });
-        }
-        return apiClient.get('/reports/receipt-return');
-    },
-
-    // --- 4. BÁO GIÁ ---
-    getQuotation: (params) => {
-        if (params && Object.keys(params).length > 0) {
-            return apiClient.get('/reports/filter-quotation', { params });
-        }
-        return apiClient.get('/reports/quotation');
-    }
+    // ... (Các hàm khác giữ nguyên)
+    getExportImport: (params) => apiClient.get('/reports/export-import', { params }), // Example check logic inside if needed
+    getReceiptReturn: (params) => apiClient.get('/reports/receipt-return', { params }),
+    getQuotation: (params) => apiClient.get('/reports/quotation', { params }),
 };
 
 export default reportApi;
